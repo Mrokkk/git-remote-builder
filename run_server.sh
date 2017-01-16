@@ -14,13 +14,16 @@ name=$1
 branch=$2
 building_script=$(readlink -f $3)
 
+mkdir -p workspace
+cd workspace
+
 if [ -e .lock ]; then
     echo "Server already running!" && exit 1
 fi
 
 touch .lock
 
-./runner.sh $name $branch $building_script &
+../runner.sh $name $branch $building_script &
 pid=$!
 git init --bare ${name}.git
 echo "#!/bin/bash

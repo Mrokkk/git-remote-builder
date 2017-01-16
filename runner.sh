@@ -20,7 +20,7 @@ trigger() {
     git fetch origin $branch
     git reset --hard origin/$branch
     git submodule update --init --recursive
-    $building_script 2>&1 | tee $old_pwd/log.$build_number
+    unbuffer $building_script 2>&1 | tee $old_pwd/log.$build_number
     if [ "$?" == "0" ]; then
         echo "* Built passed!"
     else
