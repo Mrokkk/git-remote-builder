@@ -31,6 +31,7 @@ trigger() {
 }
 
 while [[ true ]]; do
-    sleep 2
+    sleep infinity &
+    wait
 done
 
