@@ -3,6 +3,7 @@
 name=$1
 branch=$2
 building_script=$3
+sleep_pid=
 
 star="\e[1;35m*\e[0m"
 
@@ -11,6 +12,7 @@ trap trigger SIGUSR1
 build_number=0
 
 trigger() {
+    kill -9 $sleep_pid
     echo
     echo -e "$star $name build #$build_number @ `LANG=C date`"
     echo -e "$star Output is written also to file: $PWD/log.$build_number"
@@ -34,6 +36,7 @@ trigger() {
 
 while [[ true ]]; do
     sleep infinity &
-    wait
+    sleep_pid=$!
+    wait $sleep_pid
 done
 
