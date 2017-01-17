@@ -4,5 +4,5 @@ mkdir -p build && cd build
 if [ ! -e Makefile ]; then
     cmake ..
 fi
-make -j4
+make -j$(nproc) -l$(nproc)
 
