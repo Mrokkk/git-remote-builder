@@ -23,10 +23,12 @@ fi
 
 touch .lock
 
+git init --bare ${name}.git
+echo "git remote add remote ssh://$USER@$HOSTNAME:$PWD/$name.git"
+
 ../runner.sh $name $branch $building_script &
 pid=$!
 echo "Started runner with PID $pid"
-git init --bare ${name}.git
 echo "#!/bin/bash
 echo \"Triggering a server...\"
 kill -10 $pid

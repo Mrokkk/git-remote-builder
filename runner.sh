@@ -23,7 +23,7 @@ trigger() {
     git reset --hard origin/$branch
     git submodule update --init --recursive
     unbuffer $building_script 2>&1 | tee $old_pwd/log.$build_number
-    if [ "$?" == "0" ]; then
+    if [ "$PIPESTATUS" == "0" ]; then
         echo -e "$star Build #$build_number \e[1;32mPASSED\e[0m"
     else
         echo -e "$star Build #$build_number \e[1;31mFAILED\e[0m"
