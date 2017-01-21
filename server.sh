@@ -38,7 +38,7 @@ done
 
 case "$operation" in
     start)
-        $base_dir/runner.sh $name $building_script &
+        nohup $base_dir/runner.sh $name $building_script 0<&- &>/dev/null &
         info "Started runner with PID $!"
         ;;
     stop)

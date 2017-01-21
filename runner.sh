@@ -16,12 +16,11 @@ interrupt() {
 }
 
 trigger() {
+    old_pwd=$PWD
+    log=$old_pwd/log
     kill -9 $sleep_pid
     branch=$(cat branchname)
-    echo
-    info "$name/$branch build #$build_number @ `LANG=C date`"
-    info "Output is written also to file: $PWD/log.$build_number"
-    old_pwd=$PWD
+    info "$name/$branch build #$build_number @ `LANG=C date`" > $log
     set -e
     if [ ! -e $name ]; then
         git clone $name.git $name
@@ -31,12 +30,13 @@ trigger() {
     git checkout origin/$branch 2> /dev/null
     git submodule update --init --recursive 2> /dev/null
     set +e
-    unbuffer $building_script 2>&1 | tee $old_pwd/log.$build_number
+    unbuffer $building_script 2>&1 >> $old_pwd/log
     if [ "$PIPESTATUS" == "0" ]; then
-        info "Build #$build_number \e[1;32mPASSED\e[0m"
+        info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
     else
-        info "Build #$build_number \e[1;31mFAILED\e[0m"
+        info "Build #$build_number \e[1;31mFAILED\e[0m" >> $log
     fi
+    cp $log $old_pwd/log.$build_number
     cd $old_pwd
     build_number=$((build_number+1))
 }
@@ -53,6 +53,8 @@ if [ -e .lock ]; then
 fi
 
 echo $$ > .lock
+
+touch log
 
 git init --bare ${name}.git
 
@@ -75,6 +77,6 @@ info "To use it: git remote add remote ssh://$USER@$HOSTNAME:$PWD/$name.git"
 while [[ true ]]; do
     sleep infinity &
     sleep_pid=$!
-    wait $sleep_pid
+    wait $sleep_pid 2>/dev/null
 done
 
