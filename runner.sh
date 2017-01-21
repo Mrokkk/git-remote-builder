@@ -6,11 +6,13 @@ name=$1
 building_script=$2
 sleep_pid=
 build_number=0
+workspace=
 
 interrupt() {
     info "Shutting down server..."
     kill $sleep_pid > /dev/null
-    rm .lock
+    rm $workspace/.lock
+    exit 0
 }
 
 trigger() {
@@ -44,12 +46,13 @@ trap trigger SIGUSR1
 
 mkdir -p $name-workspace
 cd $name-workspace
+workspace=$PWD
 
 if [ -e .lock ]; then
     die "Server already running!"
 fi
 
-touch .lock
+echo $$ > .lock
 
 git init --bare ${name}.git
 

@@ -37,8 +37,13 @@ case "$operation" in
         info "Started runner with PID $!"
         ;;
     stop)
+        pid=$(cat $name-workspace/.lock)
+        if [ "$pid" == "" ]; then
+            die "No such runner!"
+        fi
+        kill $pid
         ;;
-    show)
+    ls)
         ;;
 esac
 
