@@ -8,7 +8,10 @@ source $base_dir/utils.sh
 
 operation=$1
 name=$2
-shift 2
+if [ "$name" != "" ]; then
+    shift
+fi
+shift
 
 while true; do
     case "$1" in
@@ -45,7 +48,14 @@ case "$operation" in
         fi
         kill $pid
         ;;
-    ls)
+    rm|remove)
+        ;;
+    ls|list)
+        for d in $(ls -d $base_dir/*-workspace/); do
+            if [ -e $d/.lock ]; then
+                echo $(basename $d | sed 's/-.*//g')
+            fi
+        done
         ;;
 esac
 
