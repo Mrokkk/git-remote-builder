@@ -56,18 +56,19 @@ echo $$ > .lock
 
 git init --bare ${name}.git
 
-echo "#!/bin/bash
-read oldrev newrev ref
-echo \"Triggering a server...\"
-echo \"\${ref#refs/heads/}\" > ../branchname
-kill -10 $$
-if [ \$? == 0 ]; then
-    echo \"Build triggered.\"
+if [ "$building_script" != "" ]; then
+    echo "#!/bin/bash
+    read oldrev newrev ref
+    echo \"Triggering a server...\"
+    echo \"\${ref#refs/heads/}\" > ../branchname
+    kill -10 $$
+    if [ \$? == 0 ]; then
+        echo \"Build triggered.\"
+    fi
+    " > ${name}.git/hooks/post-receive
+    chmod +x ${name}.git/hooks/post-receive
+    info "Created post-receive hook"
 fi
-" > ${name}.git/hooks/post-receive
-chmod +x ${name}.git/hooks/post-receive
-
-info "Created post-receive hook"
 
 info "To use it: git remote add remote ssh://$USER@$HOSTNAME:$PWD/$name.git"
 
