@@ -19,13 +19,15 @@ trigger() {
     echo -e "$star $name/$branch build #$build_number @ `LANG=C date`"
     echo -e "$star Output is written also to file: $PWD/log.$build_number"
     old_pwd=$PWD
+    set -e
     if [ ! -e $name ]; then
         git clone $name.git $name
     fi
     cd $name
-    git fetch origin $branch
-    git reset --hard origin/$branch
-    git submodule update --init --recursive
+    git fetch origin $branch 2> /dev/null
+    git checkout origin/$branch 2> /dev/null
+    git submodule update --init --recursive 2> /dev/null
+    set +e
     unbuffer $building_script 2>&1 | tee $old_pwd/log.$build_number
     if [ "$PIPESTATUS" == "0" ]; then
         echo -e "$star Build #$build_number \e[1;32mPASSED\e[0m"
