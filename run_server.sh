@@ -2,7 +2,9 @@
 
 set -e
 
-source utils.sh
+base_dir=$(readlink -f `dirname $0`)
+
+source $base_dir/utils.sh
 
 operation=$1
 name=$2
@@ -11,7 +13,7 @@ shift 2
 while true; do
     case "$1" in
         -s|--building-script)
-            building_script=${PWD}/$2
+            building_script=$(readlink -f $2)
             shift 2
             ;;
         -f|--force-remove)
@@ -33,11 +35,11 @@ done
 
 case "$operation" in
     start)
-        ./runner.sh $name $building_script &
+        $base_dir/runner.sh $name $building_script &
         info "Started runner with PID $!"
         ;;
     stop)
-        pid=$(cat $name-workspace/.lock)
+        pid=$(cat $base_dir/$name-workspace/.lock)
         if [ "$pid" == "" ]; then
             die "No such runner!"
         fi
@@ -46,5 +48,4 @@ case "$operation" in
     ls)
         ;;
 esac
-
 
