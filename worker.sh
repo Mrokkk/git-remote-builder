@@ -4,24 +4,37 @@ base_dir=$(readlink -f `dirname $0`)
 
 source $base_dir/detail/utils.sh
 
-name=$1
+operation=$1
+name=$2
 
-mkdir -p $name-workspace
-cd $name-workspace
-workspace=$PWD
-
-if [ -e .lock ]; then
-    die "Worker already running!"
-fi
-
-touch log
-
-nohup $base_dir/detail/workerd.sh $name 0<&- &>/dev/null &
-
-pid=$!
-echo $pid > .lock
-
-create_repo $name $pid
-
-info "To use it: ssh://$USER@$HOSTNAME:$PWD/$name.git"
+case "$operation" in
+    start)
+        nohup $base_dir/detail/workerd.sh $name 0<&- &>/dev/null &
+        info "Started worker with PID $!"
+        info "To use it: ssh://$USER@$HOSTNAME:$PWD/$name.git"
+        ;;
+    stop)
+        pid=$(get_daemon_pid $name .)
+        if [ "$pid" == "" ]; then
+            die "No such server!"
+        fi
+        kill $pid
+        if [ "$?" == "0" ]; then
+            info "Stopped server with PID $pid"
+        fi
+        ;;
+    rm|remove)
+        info "Not supported yet!"
+        ;;
+    st|status)
+        info "Not supported yet!"
+        ;;
+    ls|list)
+        for d in $(ls -d $base_dir/*-workspace/); do
+            if [ -e $d/.lock ]; then
+                echo $(basename $d | sed 's/-.*//g')
+            fi
+        done
+        ;;
+esac
 

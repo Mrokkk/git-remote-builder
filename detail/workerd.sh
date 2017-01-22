@@ -7,8 +7,6 @@ source $base_dir/utils.sh
 name=$1
 sleep_pid=
 build_number=0
-workspace=$PWD
-building_script=$workspace/build.sh
 
 interrupt() {
     info "Shutting down worker..."
@@ -45,6 +43,21 @@ trigger() {
 
 trap interrupt SIGINT SIGTERM SIGHUP
 trap trigger SIGUSR1
+
+mkdir -p $name-workspace
+cd $name-workspace
+workspace=$PWD
+building_script=$workspace/build.sh
+
+if [ -e .lock ]; then
+    die "Worker already running!"
+fi
+
+touch log
+
+echo $$ > .lock
+
+create_repo $name $$
 
 while [[ true ]]; do
     sleep infinity &
