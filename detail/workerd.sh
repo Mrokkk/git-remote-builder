@@ -1,15 +1,17 @@
 #!/bin/bash
 
-source utils.sh
+base_dir=$(readlink -f `dirname $0`)
+
+source $base_dir/utils.sh
 
 name=$1
-building_script=$2
 sleep_pid=
 build_number=0
-workspace=
+workspace=$PWD
+building_script=$workspace/build.sh
 
 interrupt() {
-    info "Shutting down server..."
+    info "Shutting down worker..."
     kill $sleep_pid > /dev/null
     rm $workspace/.lock
     exit 0
@@ -43,36 +45,6 @@ trigger() {
 
 trap interrupt SIGINT SIGTERM SIGHUP
 trap trigger SIGUSR1
-
-mkdir -p $name-workspace
-cd $name-workspace
-workspace=$PWD
-
-if [ -e .lock ]; then
-    die "Server already running!"
-fi
-
-echo $$ > .lock
-
-touch log
-
-git init --bare ${name}.git
-
-if [ "$building_script" != "" ]; then
-    echo "#!/bin/bash
-    read oldrev newrev ref
-    echo \"Triggering a server...\"
-    echo \"\${ref#refs/heads/}\" > ../branchname
-    kill -10 $$
-    if [ \$? == 0 ]; then
-        echo \"Build triggered.\"
-    fi
-    " > ${name}.git/hooks/post-receive
-    chmod +x ${name}.git/hooks/post-receive
-    info "Created post-receive hook"
-fi
-
-info "To use it: git remote add remote ssh://$USER@$HOSTNAME:$PWD/$name.git"
 
 while [[ true ]]; do
     sleep infinity &

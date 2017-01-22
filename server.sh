@@ -4,7 +4,7 @@ set -e
 
 base_dir=$(readlink -f `dirname $0`)
 
-source $base_dir/utils.sh
+source $base_dir/detail/utils.sh
 
 operation=$1
 name=$2
@@ -15,6 +15,10 @@ shift
 
 while true; do
     case "$1" in
+        -a|--address)
+            address=$2
+            shift 2
+            ;;
         -s|--building-script)
             building_script=$(readlink -f $2)
             shift 2
@@ -22,10 +26,6 @@ while true; do
         -f|--force-remove)
             force=y
             shift
-            ;;
-        --)
-            shift
-            break
             ;;
         *)
             if [ "$1" == "" ]; then
@@ -38,17 +38,32 @@ done
 
 case "$operation" in
     start)
-        nohup $base_dir/runner.sh $name $building_script 0<&- &>/dev/null &
-        info "Started runner with PID $!"
+        nohup $base_dir/detail/serverd.sh $name 0<&- &>/dev/null &
+        info "Started server with PID $!"
         ;;
     stop)
-        pid=$(cat $base_dir/$name-workspace/.lock)
+        pid=$(get_daemon_pid $name .)
         if [ "$pid" == "" ]; then
-            die "No such runner!"
+            die "No such server!"
         fi
         kill $pid
+        if [ "$?" == "0" ]; then
+            info "Stopped server with PID $pid"
+        fi
+        ;;
+    add-worker)
+        scp $building_script $(dirname $address)/build.sh
+        if [ ! $name-workspace/remotes ]; then
+            touch $name-workspace/remotes
+        fi
+        echo $address >> $name-workspace/remotes
+        info "Added remote $address for $name"
         ;;
     rm|remove)
+        info "Not supported yet!"
+        ;;
+    st|status)
+        info "Not supported yet!"
         ;;
     ls|list)
         for d in $(ls -d $base_dir/*-workspace/); do
