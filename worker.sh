@@ -16,18 +16,21 @@ case "$operation" in
     stop)
         pid=$(get_daemon_pid $name .)
         if [ "$pid" == "" ]; then
-            die "No such server!"
+            die "No such worker!"
         fi
         kill $pid
         if [ "$?" == "0" ]; then
-            info "Stopped server with PID $pid"
+            info "Stopped worker with PID $pid"
         fi
         ;;
     rm|remove)
         info "Not supported yet!"
         ;;
     st|status)
-        info "Not supported yet!"
+        pid=$(get_daemon_pid $name .)
+        if [ $pid ]; then
+            info "$name: running"
+        fi
         ;;
     ls|list)
         for d in $(ls -d $base_dir/*-workspace/); do

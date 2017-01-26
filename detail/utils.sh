@@ -13,13 +13,13 @@ die() {
 
 create_repo() {
     local repo_name=$1
-    local daemon_pid=$2
+    local pipe_name=$2
     git init --bare $repo_name.git > /dev/null
     echo "#!/bin/bash
     read oldrev newrev ref
     echo \"Triggering a server...\"
     echo \"\${ref#refs/heads/}\" > ../branchname
-    kill -10 $daemon_pid
+    echo \"\$repo_name\" >> $pipe_name
     if [ \$? == 0 ]; then
         echo \"Build triggered.\"
     fi

@@ -5,21 +5,20 @@ base_dir=$(readlink -f `dirname $0`)
 source $base_dir/utils.sh
 
 name=$1
-sleep_pid=
 build_number=0
 building_script=$workspace/build.sh
+pipe=/tmp/$name-serverd-$(date +%s)
 
 interrupt() {
     info "Shutting down server..."
-    kill $sleep_pid > /dev/null
     rm $workspace/.lock
+    rm $pipe
     exit 0
 }
 
 trigger() {
     old_pwd=$PWD
     log=$old_pwd/log
-    kill -9 $sleep_pid
     branch=$(cat branchname)
     set -e
     if [ ! -e $name ]; then
@@ -39,7 +38,6 @@ trigger() {
 }
 
 trap interrupt SIGINT SIGTERM SIGHUP
-trap trigger SIGUSR1
 
 mkdir -p $name-workspace
 cd $name-workspace
@@ -51,11 +49,12 @@ fi
 
 echo $$ > .lock
 
-create_repo $name $$
+mknod $pipe p
+
+create_repo $name $pipe
 
 while [[ true ]]; do
-    sleep infinity &
-    sleep_pid=$!
-    wait $sleep_pid 2>/dev/null
+    read line < $pipe
+    trigger
 done
 
