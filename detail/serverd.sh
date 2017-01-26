@@ -11,8 +11,8 @@ pipe=/tmp/$name-serverd-$(date +%s)
 
 interrupt() {
     info "Shutting down server..."
-    rm $workspace/.lock
-    rm $pipe
+    run_command rm $workspace/.lock
+    run_command rm $pipe
     exit 0
 }
 
@@ -29,8 +29,7 @@ trigger() {
     run_command git reset --hard origin/$branch
     run_command git submodule update --init --recursive
     for remote in $(cat ../remotes); do
-        echo "Pushing to $remote..."
-        git push $remote $branch --force
+        run_command git push $remote $branch --force
     done
     cd $old_pwd
 }
@@ -45,9 +44,9 @@ if [ -e .lock ]; then
     die "Server exists!"
 fi
 
-echo $$ > .lock
+run_command echo $$ > .lock
 
-mknod $pipe p
+run_command mknod $pipe p
 
 create_repo $name $pipe
 

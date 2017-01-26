@@ -15,6 +15,7 @@ create_repo() {
     local repo_name=$1
     local pipe_name=$2
     run_command git init --bare $repo_name.git
+    info "Creating post-receive hook"
     echo "#!/bin/bash
     read oldrev newrev ref
     echo \"Triggering a server...\"

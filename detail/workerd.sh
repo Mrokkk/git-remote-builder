@@ -10,8 +10,8 @@ pipe=/tmp/$name-workerd-$(date +%s)
 
 interrupt() {
     info "Shutting down worker..."
-    rm $workspace/.lock
-    rm $pipe
+    run_command rm $workspace/.lock
+    run_command rm $pipe
     exit 0
 }
 
