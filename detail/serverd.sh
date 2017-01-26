@@ -17,9 +17,9 @@ interrupt() {
 }
 
 trigger() {
+    local branch=$1
     old_pwd=$PWD
     log=$old_pwd/log
-    branch=$(cat branchname)
     if [ ! -e $name ]; then
         run_command git clone $name.git $name
     fi
@@ -52,7 +52,7 @@ mknod $pipe p
 create_repo $name $pipe
 
 while [[ true ]]; do
-    read line < $pipe
-    trigger
+    read branchname < $pipe
+    trigger $branchname
 done
 

@@ -16,17 +16,17 @@ interrupt() {
 }
 
 trigger() {
+    local branch=$1
     old_pwd=$PWD
     log=$old_pwd/log
-    branch=$(cat branchname)
-    info "$name/$branch build #$build_number @ `LANG=C date`" > $log
+    info "$name/$branch build #$build_number @ `LANG=C date`" | tee $log
     if [ ! -e $name ]; then
         run_command git clone $name.git $name
     fi
     cd $name
-    run_command git fetch origin $branch 2> /dev/null
-    run_command git checkout origin/$branch 2> /dev/null
-    run_command git submodule update --init --recursive 2> /dev/null
+    run_command git fetch origin $branch
+    run_command git checkout origin/$branch
+    run_command git submodule update --init --recursive
     unbuffer $building_script 2>&1 >> $old_pwd/log
     if [ $? -eq 0 ]; then
         info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
@@ -49,6 +49,8 @@ if [ -e .lock ]; then
     die "Worker already running!"
 fi
 
+set -e
+
 touch log
 
 echo $$ > .lock
@@ -57,8 +59,10 @@ mknod $pipe p
 
 create_repo $name $pipe
 
+set +e
+
 while [[ true ]]; do
-    read line < $pipe
-    trigger
+    read branchname < $pipe
+    trigger $branchname
 done
 
