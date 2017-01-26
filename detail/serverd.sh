@@ -20,16 +20,14 @@ trigger() {
     old_pwd=$PWD
     log=$old_pwd/log
     branch=$(cat branchname)
-    set -e
     if [ ! -e $name ]; then
-        git clone $name.git $name
+        run_command git clone $name.git $name
     fi
     cd $name
-    git fetch origin $branch
-    git checkout $branch
-    git reset --hard origin/$branch
-    git submodule update --init --recursive
-    set +e
+    run_command git fetch origin $branch
+    run_command git checkout $branch
+    run_command git reset --hard origin/$branch
+    run_command git submodule update --init --recursive
     for remote in $(cat ../remotes); do
         echo "Pushing to $remote..."
         git push $remote $branch --force

@@ -20,17 +20,15 @@ trigger() {
     log=$old_pwd/log
     branch=$(cat branchname)
     info "$name/$branch build #$build_number @ `LANG=C date`" > $log
-    set -e
     if [ ! -e $name ]; then
-        git clone $name.git $name
+        run_command git clone $name.git $name
     fi
     cd $name
-    git fetch origin $branch 2> /dev/null
-    git checkout origin/$branch 2> /dev/null
-    git submodule update --init --recursive 2> /dev/null
-    set +e
+    run_command git fetch origin $branch 2> /dev/null
+    run_command git checkout origin/$branch 2> /dev/null
+    run_command git submodule update --init --recursive 2> /dev/null
     unbuffer $building_script 2>&1 >> $old_pwd/log
-    if [ "$PIPESTATUS" == "0" ]; then
+    if [ $? -eq 0 ]; then
         info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
     else
         info "Build #$build_number \e[1;31mFAILED\e[0m" >> $log

@@ -9,9 +9,9 @@ name=$2
 
 case "$operation" in
     start)
-        nohup $base_dir/detail/workerd.sh $name 0<&- &>/dev/null &
+        nohup $base_dir/detail/workerd.sh $name 0<&- &>$name-workerd-log &
         info "Started worker with PID $!"
-        info "To use it: ssh://$USER@$HOSTNAME:$PWD/$name.git"
+        info "To use it: server.sh add-worker -a ssh://$USER@$HOSTNAME:$PWD/$name-workspace/$name.git -s \${building_script}"
         ;;
     stop)
         pid=$(get_daemon_pid $name .)

@@ -38,7 +38,7 @@ done
 
 case "$operation" in
     start)
-        nohup $base_dir/detail/serverd.sh $name 0<&- &>/dev/null &
+        nohup $base_dir/detail/serverd.sh $name 0<&- &>$name-serverd-log &
         info "Started server with PID $!"
         ;;
     stop)

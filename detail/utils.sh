@@ -35,3 +35,15 @@ get_daemon_pid() {
     fi
 }
 
+run_command() {
+    local com=$@
+    local log=/tmp/log-$(date +%s)
+    info "Running: \"$com\""
+    $com &>$log
+    if [ $? -ne 0 ]; then
+        cat $log
+        info "Command \"$com\" FAILED"
+    fi
+    rm $log
+}
+
