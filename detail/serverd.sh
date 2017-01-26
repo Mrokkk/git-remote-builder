@@ -44,7 +44,7 @@ if [ -e .lock ]; then
     die "Server exists!"
 fi
 
-run_command echo $$ > .lock
+echo $$ > .lock
 
 run_command mknod $pipe p
 
