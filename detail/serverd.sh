@@ -50,6 +50,7 @@ run_command mknod $pipe p
 
 create_repo $name $pipe
 
+set +e
 while [[ true ]]; do
     read branchname < $pipe
     trigger $branchname

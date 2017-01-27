@@ -18,10 +18,10 @@ create_repo() {
     info "Creating post-receive hook"
     echo "#!/bin/bash
     read oldrev newrev ref
-    echo \"Triggering a server...\"
+    echo \"Adding a build \$newrev to the queue...\"
     echo \"\${ref#refs/heads/}\" >> $pipe_name
     if [ \$? == 0 ]; then
-        echo \"Build triggered.\"
+        echo \"OK\"
     fi
     " > ${repo_name}.git/hooks/post-receive
     run_command chmod +x ${repo_name}.git/hooks/post-receive
