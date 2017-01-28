@@ -44,7 +44,7 @@ worker_build() {
     local branch=$1
     local commit=$2
     if [ ! -e build.sh ]; then
-        info "No building script!"
+        error "No building script!"
         return
     fi
     old_pwd=$PWD

@@ -12,6 +12,10 @@ info() {
     echo -e "$star $@"
 }
 
+error() {
+    echo -e "$star $@"
+}
+
 die() {
     echo -e "$star $@"
     exit 1

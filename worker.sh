@@ -1,7 +1,6 @@
 #!/bin/bash
 
 base_dir=$(readlink -f `dirname $0`)
-
 source $base_dir/detail/utils.sh
 
 operation=$1
@@ -28,8 +27,8 @@ case "$operation" in
         info "Not supported yet!"
         ;;
     st|status)
-        pid=$(get_daemon_pid $name .)
-        if [ $pid ]; then
+        port=$(get_server_port $name .)
+        if [ $port ]; then
             info "$name: running"
         fi
         ;;

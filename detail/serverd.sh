@@ -29,17 +29,22 @@ server_build() {
 }
 
 server_connect() {
-    info "Connecting to $1:$2 and sending $3"
+    info "Connecting to $1:$2 and sending building script $3"
     local worker_address=$1
     local worker_port=$2
     local building_script=$3
-    # FIXME
-    echo "connect $workspace/$name.git
+    local hostname=""
+    if [ "$worker_address" == "localhost" ] || [ "$worker_address" == "$HOSTNAME" ] || [ "$worker_address" == "127.0.0.1" ]; then
+        hostname=""
+    else
+        hostname="$worker_address:"
+    fi
+    echo "connect $hostname$workspace/$name.git
     START
     $(cat $building_script)
     STOP" > /dev/tcp/$worker_address/$worker_port
     if [ ! $? ]; then
-        info "Cannot send data to worker!"
+        error "Cannot send data to worker!"
     fi
     workers+=("$worker_address/$worker_port")
 }
