@@ -34,7 +34,7 @@ run_command() {
     local log=/tmp/log-$(date +%s)
     info "Running: \"$com\""
     $com &>$log
-    if [ $? -ne 0 ]; then
+    if [ ! $? ]; then
         cat $log
         info "Command \"$com\" FAILED"
     fi
@@ -49,5 +49,13 @@ get_free_port() {
             break
         fi
     done
+}
+
+hostname_is_local() {
+    if [ "$1" == "localhost" ] || [ "$1" == "$HOSTNAME" ] || [ "$1" == "127.0.0.1" ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 

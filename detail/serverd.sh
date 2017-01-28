@@ -34,15 +34,15 @@ server_connect() {
     local worker_port=$2
     local building_script=$3
     local hostname=""
-    if [ "$worker_address" == "localhost" ] || [ "$worker_address" == "$HOSTNAME" ] || [ "$worker_address" == "127.0.0.1" ]; then
+    if hostname_is_local $worker_address; then
         hostname=""
     else
         hostname="$worker_address:"
     fi
     echo "connect $hostname$workspace/$name.git
-    START
+    $start_transmission
     $(cat $building_script)
-    STOP" > /dev/tcp/$worker_address/$worker_port
+    $end_transmission" > /dev/tcp/$worker_address/$worker_port
     if [ ! $? ]; then
         error "Cannot send data to worker!"
     fi
