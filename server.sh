@@ -42,8 +42,9 @@ done
 
 case "$operation" in
     start)
-        nohup $base_dir/detail/serverd.sh $name 0<&- &>$name-serverd-log &
-        info "Started server with PID $!"
+        port=$(get_free_port)
+        $base_dir/detail/serverd.sh $name $port & #0<&- &>$name-serverd-log
+        info "Started server at port $port"
         ;;
     stop)
         pid=$(get_daemon_pid $name .)
@@ -59,8 +60,10 @@ case "$operation" in
         if [ ! $name-workspace/workers ]; then
             touch $name-workspace/workers
         fi
-        echo $address $port >> $name-workspace/workers
-        info "Added remote $address:$port for $name"
+        echo $address $port $building_script >> $name-workspace/workers
+        pid=$(get_daemon_pid $name .)
+        kill -s SIGUSR1 $pid
+        info "Added worker $address:$port for $name"
         ;;
     rm|remove)
         info "Not supported yet!"

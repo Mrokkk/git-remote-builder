@@ -37,3 +37,13 @@ run_command() {
     rm $log
 }
 
+get_free_port() {
+    while true; do
+        local port=$(((RANDOM % 20000) + 8000))
+        if ! nc -z localhost $port; then
+            echo $port
+            break
+        fi
+    done
+}
+

@@ -5,10 +5,10 @@ source $base_dir/utils.sh
 
 name=$1
 build_number=0
-tcp_in_pipe=/tmp/$name-intcp-$(date +%s)
-tcp_out_pipe=/tmp/$name-outtcp-$(date +%s)
+tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
+tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
 
-interrupt() {
+worker_stop() {
     info "Shutting down worker..."
     run_command rm -rf $workspace/.lock
     exec 3>&-
@@ -42,6 +42,10 @@ worker_connect() {
 worker_build() {
     local branch=$1
     local commit=$2
+    if [ ! -e build.sh ]; then
+        info "No building script!"
+        return
+    fi
     old_pwd=$PWD
     log=$old_pwd/log
     if [ ! -e $name ]; then
@@ -65,7 +69,7 @@ worker_build() {
     echo "$end_transmission" >&3
 }
 
-tcp_server() {
+main() {
     while true; do
         read msg <&4
         eval "worker_$msg"
@@ -75,7 +79,7 @@ tcp_server() {
     done
 }
 
-trap interrupt SIGINT SIGTERM SIGHUP
+trap worker_stop SIGINT SIGTERM SIGHUP
 
 mkdir -p $name-workspace
 cd $name-workspace
@@ -100,5 +104,5 @@ ncat -l -m 1 -k -p 8080 <&3 >&4 &
 ncat_pid=$!
 
 set +e
-tcp_server
+main
 
