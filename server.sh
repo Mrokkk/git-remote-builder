@@ -19,6 +19,10 @@ while true; do
             address=$2
             shift 2
             ;;
+        -p|--port)
+            port=$2
+            shift 2
+            ;;
         -s|--building-script)
             building_script=$(readlink -f $2)
             shift 2
@@ -47,17 +51,16 @@ case "$operation" in
             die "No such server!"
         fi
         kill $pid
-        if [ "$?" == "0" ]; then
+        if [ $? ]; then
             info "Stopped server with PID $pid"
         fi
         ;;
     add-worker)
-        scp $building_script $(dirname $address)/build.sh
-        if [ ! $name-workspace/remotes ]; then
-            touch $name-workspace/remotes
+        if [ ! $name-workspace/workers ]; then
+            touch $name-workspace/workers
         fi
-        echo $address >> $name-workspace/remotes
-        info "Added remote $address for $name"
+        echo $address $port >> $name-workspace/workers
+        info "Added remote $address:$port for $name"
         ;;
     rm|remove)
         info "Not supported yet!"

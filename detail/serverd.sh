@@ -6,7 +6,6 @@ source $base_dir/utils.sh
 
 name=$1
 build_number=0
-building_script=$workspace/build.sh
 pipe=/tmp/$name-serverd-$(date +%s)
 
 interrupt() {
@@ -20,17 +19,7 @@ trigger() {
     local branch=$1
     old_pwd=$PWD
     log=$old_pwd/log
-    if [ ! -e $name ]; then
-        run_command git clone $name.git $name
-    fi
-    cd $name
-    run_command git fetch origin $branch
-    run_command git checkout $branch
-    run_command git reset --hard origin/$branch
-    run_command git submodule update --init --recursive
-    for remote in $(cat ../remotes); do
-        run_command git push $remote $branch --force
-    done
+    # TODO
     cd $old_pwd
 }
 
@@ -48,7 +37,17 @@ echo $$ > .lock
 
 run_command mknod $pipe p
 
-create_repo $name $pipe
+run_command git init --bare $name.git
+info "Creating post-receive hook"
+echo "#!/bin/bash
+read oldrev newrev ref
+echo \"Adding a build \$newrev to the queue...\"
+echo \"\${ref#refs/heads/}\" >> $pipe
+if [ \$? == 0 ]; then
+    echo \"OK\"
+fi
+" > ${name}.git/hooks/post-receive
+run_command chmod +x ${name}.git/hooks/post-receive
 
 set +e
 while [[ true ]]; do
