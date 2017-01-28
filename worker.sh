@@ -24,6 +24,11 @@ worker_stop() {
     fi
 }
 
+worker_remove() {
+    worker_stop
+    rm -rf $name-workspace
+}
+
 worker_status() {
     local port=$(get_server_port $name .)
     if [ $port ]; then
