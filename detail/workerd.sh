@@ -101,7 +101,7 @@ mknod $tcp_out_pipe p
 
 exec 3<>$tcp_in_pipe
 exec 4<>$tcp_out_pipe
-ncat -l -m 1 -k -p 8080 <&3 >&4 &
+ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 
 set +e
