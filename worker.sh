@@ -9,17 +9,18 @@ name=$2
 
 case "$operation" in
     start)
-        $base_dir/detail/workerd.sh $name &
-        info "Started worker with PID $!"
-        info "To use it: server.sh add-worker -a $HOSTNAME -p 8080 -s \${building_script}"
+        port=$(get_free_port)
+        $base_dir/detail/workerd.sh $name $port &
+        info "Started worker at port $port"
+        info "To use it: server.sh add-worker -a $HOSTNAME -p $port -s \${building_script}"
         ;;
     stop)
-        pid=$(get_daemon_pid $name .)
-        if [ "$pid" == "" ]; then
+        port=$(get_server_port $name .)
+        if [ "$port" == "" ]; then
             die "No such worker!"
         fi
-        kill $pid
-        if [ "$?" == "0" ]; then
+        echo "stop" > /dev/tcp/localhost/$port
+        if [ $? ]; then
             info "Stopped worker with PID $pid"
         fi
         ;;

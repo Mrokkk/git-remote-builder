@@ -17,7 +17,7 @@ die() {
     exit 1
 }
 
-get_daemon_pid() {
+get_server_port() {
     local name_=$1
     local workspace_=$(readlink -f $2)
     if [ -e $workspace_/$name_-workspace ]; then

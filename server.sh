@@ -47,22 +47,18 @@ case "$operation" in
         info "Started server at port $port"
         ;;
     stop)
-        pid=$(get_daemon_pid $name .)
-        if [ "$pid" == "" ]; then
+        port=$(get_server_port $name .)
+        if [ "$port" == "" ]; then
             die "No such server!"
         fi
-        kill $pid
+        echo "stop" > /dev/tcp/localhost/$port
         if [ $? ]; then
             info "Stopped server with PID $pid"
         fi
         ;;
     add-worker)
-        if [ ! $name-workspace/workers ]; then
-            touch $name-workspace/workers
-        fi
-        echo $address $port $building_script >> $name-workspace/workers
-        pid=$(get_daemon_pid $name .)
-        kill -s SIGUSR1 $pid
+        server_port=$(get_server_port $name .)
+        echo "connect $address $port $building_script" > /dev/tcp/localhost/$server_port
         info "Added worker $address:$port for $name"
         ;;
     rm|remove)

@@ -9,6 +9,7 @@ port=$2
 build_number=0
 tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
 tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
+workers=()
 
 server_stop() {
     info "Shutting down server..."
@@ -21,8 +22,26 @@ server_build() {
     local branch=$1
     old_pwd=$PWD
     log=$old_pwd/log
-    # TODO
+    for worker in ${workers[@]}; do
+        echo "build $branch" > /dev/tcp/$worker
+    done
     cd $old_pwd
+}
+
+server_connect() {
+    info "Connecting to $1:$2 and sending $3"
+    local worker_address=$1
+    local worker_port=$2
+    local building_script=$3
+    # FIXME
+    echo "connect $workspace/$name.git
+    START
+    $(cat $building_script)
+    STOP" > /dev/tcp/$worker_address/$worker_port
+    if [ ! $? ]; then
+        info "Cannot send data to worker!"
+    fi
+    workers+=("$worker_address/$worker_port")
 }
 
 main() {
@@ -45,7 +64,7 @@ if [ -e .lock ]; then
     die "Server exists!"
 fi
 
-echo $$ > .lock
+echo $port > .lock
 
 run_command mknod $tcp_in_pipe p
 run_command mknod $tcp_out_pipe p
@@ -60,7 +79,7 @@ info "Creating post-receive hook"
 echo "#!/bin/bash
 read oldrev newrev ref
 echo \"Adding a build \$newrev to the queue...\"
-echo \"build \${ref#refs/heads/}\" > /dev/tcp/$HOSTNAME/$port
+echo \"build \${ref#refs/heads/}\" > /dev/tcp/localhost/$port
 if [ \$? == 0 ]; then
     echo \"OK\"
 fi
