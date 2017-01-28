@@ -88,13 +88,13 @@ workspace=$PWD
 building_script=$workspace/build.sh
 
 if [ -e .lock ]; then
-    die "Worker PID $(cat .lock) already running!"
+    die "Worker already running at port $(cat .lock)!"
 fi
 
 set -e
 
 touch log
-echo $$ > .lock
+echo $port > .lock
 
 mknod $tcp_in_pipe p
 mknod $tcp_out_pipe p
