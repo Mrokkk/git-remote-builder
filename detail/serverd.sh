@@ -39,20 +39,20 @@ server_connect() {
         hostname="$worker_address:"
     fi
     echo "connect $hostname$workspace/$name.git
-    $start_transmission
+    $MSG_START_TRANSMISSION
     $(cat $building_script)
-    $end_transmission" > /dev/tcp/$worker_address/$worker_port
+    $MSG_STOP_TRANSMISSION" > /dev/tcp/$worker_address/$worker_port
     if [ ! $? ]; then
         error "Cannot send data to worker!"
     fi
-    read -t $timeout status </dev/tcp/$worker_address/$worker_port
-    if [ "$status" != "$success" ]; then
+    read -t $TIMEOUT status </dev/tcp/$worker_address/$worker_port
+    if [ "$status" != "$MSG_SUCCESS" ]; then
         error "Didn't connect to worker - no response!"
         echo "$failed" >&3
         return
     fi
     workers+=("$worker_address/$worker_port")
-    echo "$success" >&3
+    echo "$MSG_SUCCESS" >&3
     info "Successfully connected worker!"
 }
 
@@ -61,7 +61,7 @@ main() {
         read msg <&4
         eval "server_$msg"
         if [ ! $? ]; then
-            echo "$bad_message" >&3
+            echo "$MSG_BAD_MESSAGE" >&3
         fi
     done
 }
@@ -98,7 +98,7 @@ fi
 " > ${name}.git/hooks/post-receive
 run_command chmod +x ${name}.git/hooks/post-receive
 
-echo "$success" >&3
+echo "$MSG_SUCCESS" >&3
 
 set +e
 main

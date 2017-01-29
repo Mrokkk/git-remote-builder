@@ -1,13 +1,15 @@
 #!/bin/bash
 
-star="\e[1;35m*\e[0m"
-
-timeout=10
-success="OK"
-bad_message="BADM"
-failed="FAIL"
-start_transmission="START"
-end_transmission="STOP"
+TIMEOUT=10
+MSG_SUCCESS="OK"
+MSG_BAD_MESSAGE="BADM"
+MSG_FAILED="FAIL"
+MSG_START_TRANSMISSION="START"
+MSG_STOP_TRANSMISSION="STOP"
+COM_BUILD="build"
+COM_CONNECT="connect"
+COM_TEST="test"
+COM_STOP="stop"
 
 info() {
     echo -e "INFO: $@"

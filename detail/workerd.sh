@@ -21,24 +21,24 @@ workerd_stop() {
 }
 
 workerd_test() {
-    echo "$success" >&3
+    echo "$MSG_SUCCESS" >&3
 }
 
 workerd_connect() {
     repo_address=$1
-    read -t $timeout line <&4
-    if [ "$line" != "$start_transmission" ]; then
+    read -t $TIMEOUT line <&4
+    if [ "$line" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
     touch $building_script
-    while read -t $timeout text <&4; do
-        if [ "$text" == "$end_transmission" ]; then
+    while read -t $TIMEOUT text <&4; do
+        if [ "$text" == "$MSG_STOP_TRANSMISSION" ]; then
             break;
         fi
         echo $text >> $building_script
     done
     chmod +x $building_script
-    echo "$success" >&3
+    echo "$MSG_SUCCESS" >&3
 }
 
 workerd_build() {
@@ -57,7 +57,7 @@ workerd_build() {
     run_command git fetch origin $branch
     run_command git checkout origin/$branch
     run_command git submodule update --init --recursive
-    echo "$start_transmission" >&3
+    echo "$MSG_START_TRANSMISSION" >&3
     info "$name build #$build_number @ `LANG=C date`" | tee $log >&3
     unbuffer $building_script 2>&1 | tee -a $log >&3
     if [ $? ]; then
@@ -68,7 +68,7 @@ workerd_build() {
     cp $log $old_pwd/log.$build_number
     cd $old_pwd
     build_number=$((build_number+1))
-    echo "$end_transmission" >&3
+    echo "$MSG_STOP_TRANSMISSION" >&3
 }
 
 main() {
@@ -76,7 +76,7 @@ main() {
         read msg <&4
         eval "workerd_$msg"
         if [ ! $? ]; then
-            echo "$bad_message" >&3
+            echo "$MSG_BAD_MESSAGE" >&3
         fi
     done
 }
@@ -105,7 +105,7 @@ exec 4<>$tcp_out_pipe
 ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 
-echo "$success" >&3
+echo "$MSG_SUCCESS" >&3
 
 set +e
 main

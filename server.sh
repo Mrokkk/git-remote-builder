@@ -44,8 +44,8 @@ case "$operation" in
         port=$(get_free_port)
         $base_dir/detail/serverd.sh $name $port 0<&- &>$name-serverd-log &
         sleep 1
-        read -t $timeout response < /dev/tcp/localhost/$port
-        if [ "$response" == "$success" ]; then
+        read -t $TIMEOUT response < /dev/tcp/localhost/$port
+        if [ "$response" == "$MSG_SUCCESS" ]; then
             info "Started server at port $port"
         else
             die "Cannot start server!"
@@ -56,16 +56,16 @@ case "$operation" in
         if [ "$port" == "" ]; then
             die "No such server!"
         fi
-        echo "stop" > /dev/tcp/localhost/$port
+        echo "$COM_STOP" > /dev/tcp/localhost/$port
         if [ $? ]; then
             info "Stopped server with PID $pid"
         fi
         ;;
     connect)
         server_port=$(get_server_port $name .)
-        echo "connect $address $port $building_script" > /dev/tcp/localhost/$server_port
-        read -t $timeout response < /dev/tcp/localhost/$server_port
-        if [ "$response" == "$success" ]; then
+        echo "$COM_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
+        read -t $TIMEOUT response < /dev/tcp/localhost/$server_port
+        if [ "$response" == "$MSG_SUCCESS" ]; then
             info "Added worker $address:$port for $name"
         else
             die "Cannot connect to worker!"

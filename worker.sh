@@ -10,8 +10,8 @@ worker_start() {
     local port=$(get_free_port)
     nohup $base_dir/detail/workerd.sh $name $port 0<&- &>$name-workerd-log &
     sleep 1
-    read -t $timeout response < /dev/tcp/localhost/$port
-    if [ "$response" == "$success" ]; then
+    read -t $TIMEOUT response < /dev/tcp/localhost/$port
+    if [ "$response" == "$MSG_SUCCESS" ]; then
         info "Started worker at port $port"
         info "To use it: server.sh connect -a $HOSTNAME -p $port -s \${building_script}"
     else
@@ -40,9 +40,9 @@ worker_status() {
     if [ ! $port ]; then
         die "No $name worker running"
     fi
-    echo "test" > /dev/tcp/localhost/$port
-    read -t $timeout response < /dev/tcp/localhost/$port
-    if [ "$response" == "$success" ]; then
+    echo "$COM_TEST" > /dev/tcp/localhost/$port
+    read -t $TIMEOUT response < /dev/tcp/localhost/$port
+    if [ "$response" == "$MSG_SUCCESS" ]; then
         info "$name: OK"
     else
         info "$name: ERROR"
