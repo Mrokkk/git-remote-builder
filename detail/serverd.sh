@@ -37,13 +37,12 @@ read_build_log() {
 
 serverd_build() {
     local branch=$1
-    old_pwd=$PWD
-    log=$old_pwd/log
+    log=$PWD/log
     for worker in ${workers[@]}; do
-        echo "build $branch" > /dev/tcp/$worker
+        echo "build $build_number $branch" > /dev/tcp/$worker
         read_build_log $worker &
     done
-    cd $old_pwd
+    build_number=$((build_number+1))
 }
 
 serverd_connect() {

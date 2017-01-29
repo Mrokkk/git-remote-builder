@@ -5,7 +5,6 @@ source $base_dir/utils.sh
 
 name=$1
 port=$2
-build_number=0
 tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
 tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
 repo_address=""
@@ -42,8 +41,9 @@ workerd_connect() {
 }
 
 workerd_build() {
-    local branch=$1
-    local commit=$2
+    local build_number=$1
+    local branch=$2
+    local commit=$3
     if [ ! -e build.sh ]; then
         error "No building script!"
         return
@@ -67,7 +67,6 @@ workerd_build() {
     fi
     cp $log $old_pwd/log.$build_number
     cd $old_pwd
-    build_number=$((build_number+1))
     echo "$MSG_STOP_TRANSMISSION" >&3
 }
 
