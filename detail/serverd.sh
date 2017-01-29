@@ -10,24 +10,43 @@ tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
 tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
 workers=()
 
-server_stop() {
+serverd_stop() {
     info "Shutting down server..."
     run_command rm -rf $tcp_in_pipe $tcp_out_pipe $workspace/.lock
     run_command kill $ncat_pid
     exit 0
 }
 
-server_build() {
+read_build_log() {
+    local worker=$1
+    local log_name=${worker//\//-}
+    info "Reading build log from $worker"
+    exec {worker_fd}<>/dev/tcp/$worker
+    read -t $TIMEOUT start_code <&${worker_fd}
+    if [ "$start_code" != "$MSG_START_TRANSMISSION" ]; then
+        return
+    fi
+    touch $log_name
+    while read -t $TIMEOUT line <&${worker_fd}; do
+        if [ "$line" == "$MSG_STOP_TRANSMISSION" ]; then
+            break
+        fi
+        echo $line >> $log_name
+    done
+}
+
+serverd_build() {
     local branch=$1
     old_pwd=$PWD
     log=$old_pwd/log
     for worker in ${workers[@]}; do
         echo "build $branch" > /dev/tcp/$worker
+        read_build_log $worker &
     done
     cd $old_pwd
 }
 
-server_connect() {
+serverd_connect() {
     info "Connecting to $1:$2 and sending building script $3"
     local worker_address=$1
     local worker_port=$2
@@ -59,14 +78,14 @@ server_connect() {
 main() {
     while true; do
         read msg <&4
-        eval "server_$msg"
+        eval "serverd_$msg"
         if [ ! $? ]; then
             echo "$MSG_BAD_MESSAGE" >&3
         fi
     done
 }
 
-trap server_stop SIGINT SIGTERM SIGHUP
+trap serverd_stop SIGINT SIGTERM SIGHUP
 
 mkdir -p $name-workspace
 cd $name-workspace
