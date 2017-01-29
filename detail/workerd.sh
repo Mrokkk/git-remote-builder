@@ -25,12 +25,12 @@ worker_test() {
 
 worker_connect() {
     repo_address=$1
-    read -t 10 line <&4
+    read -t $timeout line <&4
     if [ "$line" != "$start_transmission" ]; then
         return
     fi
     touch $building_script
-    while read text <&4; do
+    while read -t $timeout text <&4; do
         if [ "$text" == "$end_transmission" ]; then
             break;
         fi

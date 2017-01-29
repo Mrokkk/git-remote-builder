@@ -3,7 +3,6 @@
 set -e
 
 base_dir=$(readlink -f `dirname $0`)
-
 source $base_dir/detail/utils.sh
 
 operation=$1

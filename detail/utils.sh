@@ -2,6 +2,7 @@
 
 star="\e[1;35m*\e[0m"
 
+timeout=10
 success="OK"
 bad_message="BADM"
 failed="FAIL"

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 base_dir=$(readlink -f `dirname $0`)
-
 source $base_dir/utils.sh
 
 name=$1
@@ -45,6 +44,12 @@ server_connect() {
     $end_transmission" > /dev/tcp/$worker_address/$worker_port
     if [ ! $? ]; then
         error "Cannot send data to worker!"
+    fi
+    read -t $timeout status </dev/tcp/$worker_address/$worker_port
+    if [ "$status" == "$success" ]; then
+        info "Successfully connected worker!"
+    else
+        error "No response from worker!"
     fi
     workers+=("$worker_address/$worker_port")
 }
