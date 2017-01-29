@@ -105,6 +105,8 @@ exec 4<>$tcp_out_pipe
 ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 
+echo "$success" >&3
+
 set +e
 main
 

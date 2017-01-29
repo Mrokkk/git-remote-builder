@@ -42,12 +42,13 @@ done
 case "$operation" in
     start)
         port=$(get_free_port)
-        $base_dir/detail/serverd.sh $name $port & #0<&- &>$name-serverd-log
-        read -t $timeout response < /dev/tcp/localhost/$server_port
+        $base_dir/detail/serverd.sh $name $port 0<&- &>$name-serverd-log &
+        sleep 1
+        read -t $timeout response < /dev/tcp/localhost/$port
         if [ "$response" == "$success" ]; then
             info "Started server at port $port"
         else
-            error "Cannot start server!"
+            die "Cannot start server!"
         fi
         ;;
     stop)
@@ -67,7 +68,7 @@ case "$operation" in
         if [ "$response" == "$success" ]; then
             info "Added worker $address:$port for $name"
         else
-            error "Cannot connect to worker!"
+            die "Cannot connect to worker!"
         fi
         ;;
     ls|list)

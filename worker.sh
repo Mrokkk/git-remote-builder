@@ -8,9 +8,15 @@ name=$2
 
 worker_start() {
     local port=$(get_free_port)
-    $base_dir/detail/workerd.sh $name $port &
-    info "Started worker at port $port"
-    info "To use it: server.sh connect -a $HOSTNAME -p $port -s \${building_script}"
+    nohup $base_dir/detail/workerd.sh $name $port 0<&- &>$name-workerd-log &
+    sleep 1
+    read -t $timeout response < /dev/tcp/localhost/$port
+    if [ "$response" == "$success" ]; then
+        info "Started worker at port $port"
+        info "To use it: server.sh connect -a $HOSTNAME -p $port -s \${building_script}"
+    else
+        die "Cannot start worker!"
+    fi
 }
 
 worker_stop() {
@@ -31,8 +37,15 @@ worker_remove() {
 
 worker_status() {
     local port=$(get_server_port $name .)
-    if [ $port ]; then
-        info "$name: running"
+    if [ ! $port ]; then
+        die "No $name worker running"
+    fi
+    echo "test" > /dev/tcp/localhost/$port
+    read -t $timeout response < /dev/tcp/localhost/$port
+    if [ "$response" == "$success" ]; then
+        info "$name: OK"
+    else
+        info "$name: ERROR"
     fi
 }
 
