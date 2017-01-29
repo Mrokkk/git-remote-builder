@@ -10,7 +10,7 @@ worker_start() {
     local port=$(get_free_port)
     $base_dir/detail/workerd.sh $name $port &
     info "Started worker at port $port"
-    info "To use it: server.sh add-worker -a $HOSTNAME -p $port -s \${building_script}"
+    info "To use it: server.sh connect -a $HOSTNAME -p $port -s \${building_script}"
 }
 
 worker_stop() {

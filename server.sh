@@ -55,7 +55,7 @@ case "$operation" in
             info "Stopped server with PID $pid"
         fi
         ;;
-    add-worker)
+    connect)
         server_port=$(get_server_port $name .)
         echo "connect $address $port $building_script" > /dev/tcp/localhost/$server_port
         info "Added worker $address:$port for $name"
