@@ -39,47 +39,56 @@ while true; do
     esac
 done
 
-case "$operation" in
-    start)
-        port=$(get_free_port)
-        $base_dir/detail/serverd.sh $name $port 0<&- &>$name-serverd-log &
-        sleep 1
-        read -t $TIMEOUT response < /dev/tcp/localhost/$port
-        if [ "$response" == "$MSG_SUCCESS" ]; then
-            info "Started server at port $port"
-        else
-            die "Cannot start server!"
+server_start() {
+    local port=$(get_free_port)
+    $base_dir/detail/serverd.sh $name $port 0<&- &>$name-serverd-log &
+    sleep 1
+    read -t $TIMEOUT response < /dev/tcp/localhost/$port
+    if [ "$response" == "$MSG_SUCCESS" ]; then
+        info "Started server at port $port"
+    else
+        die "Cannot start server!"
+    fi
+}
+
+server_stop() {
+    local port=$(get_server_port $name .)
+    if [ "$port" == "" ]; then
+        die "No such server!"
+    fi
+    echo "$COM_STOP" > /dev/tcp/localhost/$port
+    if [ $? ]; then
+        info "Stopped server with PID $pid"
+    fi
+}
+
+server_remove() {
+    server_stop
+    rm -rf $name*
+}
+
+server_connect() {
+    local server_port=$(get_server_port $name .)
+    echo "$COM_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
+    read -t $TIMEOUT response < /dev/tcp/localhost/$server_port
+    if [ "$response" == "$MSG_SUCCESS" ]; then
+        info "Added worker $address:$port for $name"
+    else
+        die "Cannot connect to worker!"
+    fi
+}
+
+server_log() {
+    less -r $name-serverd-log
+}
+
+server_list() {
+    for d in $(ls -d $base_dir/*-workspace/); do
+        if [ -e $d/.lock ]; then
+            echo $(basename $d | sed 's/-.*//g')
         fi
-        ;;
-    stop)
-        port=$(get_server_port $name .)
-        if [ "$port" == "" ]; then
-            die "No such server!"
-        fi
-        echo "$COM_STOP" > /dev/tcp/localhost/$port
-        if [ $? ]; then
-            info "Stopped server with PID $pid"
-        fi
-        ;;
-    connect)
-        server_port=$(get_server_port $name .)
-        echo "$COM_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
-        read -t $TIMEOUT response < /dev/tcp/localhost/$server_port
-        if [ "$response" == "$MSG_SUCCESS" ]; then
-            info "Added worker $address:$port for $name"
-        else
-            die "Cannot connect to worker!"
-        fi
-        ;;
-    log)
-        less -r $name-serverd-log
-        ;;
-    ls|list)
-        for d in $(ls -d $base_dir/*-workspace/); do
-            if [ -e $d/.lock ]; then
-                echo $(basename $d | sed 's/-.*//g')
-            fi
-        done
-        ;;
-esac
+    done
+}
+
+eval "server_$operation"
 
