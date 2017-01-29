@@ -76,13 +76,11 @@ if [ -e .lock ]; then
     die "Server exists!"
 fi
 
-echo $port > .lock
-
-run_command mknod $tcp_in_pipe p
-run_command mknod $tcp_out_pipe p
-
-exec 3<>$tcp_in_pipe
-exec 4<>$tcp_out_pipe
+run_command "echo $port > .lock"
+run_command "mkfifo $tcp_in_pipe"
+run_command "mkfifo $tcp_out_pipe"
+run_command "exec 3<>$tcp_in_pipe"
+run_command "exec 4<>$tcp_out_pipe"
 ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 

@@ -94,14 +94,12 @@ fi
 
 set -e
 
-touch log
-echo $port > .lock
-
-mknod $tcp_in_pipe p
-mknod $tcp_out_pipe p
-
-exec 3<>$tcp_in_pipe
-exec 4<>$tcp_out_pipe
+run_command "touch log"
+run_command "echo $port > .lock"
+run_command mkfifo $tcp_in_pipe
+run_command mkfifo $tcp_out_pipe
+run_command "exec 3<>$tcp_in_pipe"
+run_command "exec 4<>$tcp_out_pipe"
 ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 

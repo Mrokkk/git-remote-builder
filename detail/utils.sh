@@ -36,8 +36,7 @@ run_command() {
     local com=$@
     local log=/tmp/log-$(date +%s)
     info "Running: \"$com\""
-    $com &>$log
-    if [ ! $? ]; then
+    if ! eval "$com" &>$log; then
         cat $log
         error "Command \"$com\" FAILED"
     fi
