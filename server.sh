@@ -60,12 +60,6 @@ case "$operation" in
         echo "connect $address $port $building_script" > /dev/tcp/localhost/$server_port
         info "Added worker $address:$port for $name"
         ;;
-    rm|remove)
-        info "Not supported yet!"
-        ;;
-    st|status)
-        info "Not supported yet!"
-        ;;
     ls|list)
         for d in $(ls -d $base_dir/*-workspace/); do
             if [ -e $d/.lock ]; then

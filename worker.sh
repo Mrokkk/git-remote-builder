@@ -44,5 +44,14 @@ worker_list() {
     done
 }
 
+worker_help() {
+    echo "Available commands:
+    start \$name - starts worker with given name
+    stop \$name - stops worker
+    remove \$name - stops and removes data of worker
+    status \$name - returns status of worker
+    list - lists running workers"
+}
+
 eval "worker_$operation"
 

@@ -10,15 +10,15 @@ start_transmission="START"
 end_transmission="STOP"
 
 info() {
-    echo -e "$star $@"
+    echo -e "INFO: $@"
 }
 
 error() {
-    echo -e "$star $@"
+    echo -e "ERROR: $@"
 }
 
 die() {
-    echo -e "$star $@"
+    error "$@"
     exit 1
 }
 
@@ -37,7 +37,7 @@ run_command() {
     $com &>$log
     if [ ! $? ]; then
         cat $log
-        info "Command \"$com\" FAILED"
+        error "Command \"$com\" FAILED"
     fi
     rm $log
 }
@@ -45,7 +45,7 @@ run_command() {
 get_free_port() {
     while true; do
         local port=$(((RANDOM % 20000) + 8000))
-        if ! nc -z localhost $port; then
+        if ! ncat -z localhost $port; then
             echo $port
             break
         fi

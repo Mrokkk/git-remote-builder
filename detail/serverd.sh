@@ -90,7 +90,7 @@ echo "#!/bin/bash
 read oldrev newrev ref
 echo \"Adding a build \$newrev to the queue...\"
 echo \"build \${ref#refs/heads/}\" > /dev/tcp/localhost/$port
-if [ \$? == 0 ]; then
+if [ \$? ]; then
     echo \"OK\"
 fi
 " > ${name}.git/hooks/post-receive

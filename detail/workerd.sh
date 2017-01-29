@@ -8,8 +8,9 @@ port=$2
 build_number=0
 tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
 tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
+repo_address=""
 
-worker_stop() {
+workerd_stop() {
     info "Shutting down worker..."
     run_command rm -rf $workspace/.lock
     exec 3>&-
@@ -19,11 +20,11 @@ worker_stop() {
     exit 0
 }
 
-worker_test() {
+workerd_test() {
     echo "$success" >&3
 }
 
-worker_connect() {
+workerd_connect() {
     repo_address=$1
     read -t $timeout line <&4
     if [ "$line" != "$start_transmission" ]; then
@@ -40,7 +41,7 @@ worker_connect() {
     echo "$success" >&3
 }
 
-worker_build() {
+workerd_build() {
     local branch=$1
     local commit=$2
     if [ ! -e build.sh ]; then
@@ -73,14 +74,14 @@ worker_build() {
 main() {
     while true; do
         read msg <&4
-        eval "worker_$msg"
+        eval "workerd_$msg"
         if [ ! $? ]; then
             echo "$bad_message" >&3
         fi
     done
 }
 
-trap worker_stop SIGINT SIGTERM SIGHUP
+trap workerd_stop SIGINT SIGTERM SIGHUP
 
 mkdir -p $name-workspace
 cd $name-workspace
