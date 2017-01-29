@@ -27,7 +27,7 @@ read_build_log() {
     if [ "$start_code" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
-    run_command "touch $log_name"
+    run_command "rm -f $log_name"
     while read -t $TIMEOUT line <&${worker_fd}; do
         if [ "$line" == "$MSG_STOP_TRANSMISSION" ]; then
             break
@@ -41,8 +41,9 @@ serverd_build() {
     local branch=$1
     log=$PWD/log
     for worker in ${workers[@]}; do
+        info "Sending build #$build_number command to $worker"
         echo "build $build_number $branch" > /dev/tcp/$worker
-        read_build_log $worker $build_number &
+        # read_build_log $worker $build_number &
     done
     build_number=$((build_number+1))
 }
@@ -56,7 +57,7 @@ serverd_connect() {
     if hostname_is_local $worker_address; then
         hostname=""
     else
-        hostname="$worker_address:"
+        hostname="ssh://$HOSTNAME:"
     fi
     echo "connect $hostname$workspace/$name.git
     $MSG_START_TRANSMISSION

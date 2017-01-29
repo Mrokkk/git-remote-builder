@@ -34,13 +34,16 @@ get_server_port() {
 
 run_command() {
     local com=$@
-    local log=/tmp/log-$(date +%s)-$((RANDOM % 20000))
+    local log=$(mktemp)
     info "Running: \"$com\""
     if ! eval "$com" &>$log; then
         cat $log
         error "Command \"$com\" FAILED"
+        rm $log
+        return 1
     fi
     rm $log
+    return 0
 }
 
 get_free_port() {

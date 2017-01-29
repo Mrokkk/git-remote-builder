@@ -50,24 +50,22 @@ workerd_build() {
     fi
     old_pwd=$PWD
     log=$old_pwd/log
-    if [ ! -e $name ]; then
+    if [ ! -d $name ]; then
         run_command git clone $repo_address $name
     fi
     cd $name
     run_command git fetch origin $branch
     run_command git checkout origin/$branch
     run_command git submodule update --init --recursive
-    echo "$MSG_START_TRANSMISSION" >&3
-    info "$name build #$build_number @ `LANG=C date`" | tee $log >&3
-    unbuffer $building_script 2>&1 | tee -a $log >&3
-    if [ $? ]; then
-        info "Build #$build_number \e[1;32mPASSED\e[0m" | tee -a $log >&3
+    info "$name build #$build_number @ `LANG=C date`" > $log
+    unbuffer $building_script | tee -a $log
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
     else
-        info "Build #$build_number \e[1;31mFAILED\e[0m" | tee -a $log >&3
+        info "Build #$build_number \e[1;31mFAILED\e[0m" >> $log
     fi
     cp $log $old_pwd/log.$build_number
     cd $old_pwd
-    echo "$MSG_STOP_TRANSMISSION" >&3
 }
 
 main() {

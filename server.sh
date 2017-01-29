@@ -26,9 +26,9 @@ while true; do
             building_script=$(readlink -f $2)
             shift 2
             ;;
-        -f|--force-remove)
-            force=y
-            shift
+        -c|--config)
+            config_file=$2
+            shift 2
             ;;
         *)
             if [ "$1" == "" ]; then
@@ -40,7 +40,9 @@ while true; do
 done
 
 server_start() {
-    local port=$(get_free_port)
+    if [ ! "$port" ]; then
+        local port=$(get_free_port)
+    fi
     $base_dir/detail/serverd.sh $name $port 0<&- &>$name-serverd-log &
     sleep 1
     read -t $TIMEOUT response < /dev/tcp/localhost/$port
@@ -48,6 +50,12 @@ server_start() {
         info "Started server at port $port"
     else
         die "Cannot start server!"
+    fi
+    if [ "$config_file" ]; then
+        while read address port building_script; do
+            building_script=$(readlink -f $building_script)
+            server_connect
+        done < $config_file
     fi
 }
 
