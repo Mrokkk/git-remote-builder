@@ -43,7 +43,12 @@ case "$operation" in
     start)
         port=$(get_free_port)
         $base_dir/detail/serverd.sh $name $port & #0<&- &>$name-serverd-log
-        info "Started server at port $port"
+        read -t $timeout response < /dev/tcp/localhost/$server_port
+        if [ "$response" == "$success" ]; then
+            info "Started server at port $port"
+        else
+            error "Cannot start server!"
+        fi
         ;;
     stop)
         port=$(get_server_port $name .)
@@ -58,7 +63,12 @@ case "$operation" in
     connect)
         server_port=$(get_server_port $name .)
         echo "connect $address $port $building_script" > /dev/tcp/localhost/$server_port
-        info "Added worker $address:$port for $name"
+        read -t $timeout response < /dev/tcp/localhost/$server_port
+        if [ "$response" == "$success" ]; then
+            info "Added worker $address:$port for $name"
+        else
+            error "Cannot connect to worker!"
+        fi
         ;;
     ls|list)
         for d in $(ls -d $base_dir/*-workspace/); do

@@ -46,12 +46,14 @@ server_connect() {
         error "Cannot send data to worker!"
     fi
     read -t $timeout status </dev/tcp/$worker_address/$worker_port
-    if [ "$status" == "$success" ]; then
-        info "Successfully connected worker!"
-    else
-        error "No response from worker!"
+    if [ "$status" != "$success" ]; then
+        error "Didn't connect to worker - no response!"
+        echo "$failed" >&3
+        return
     fi
     workers+=("$worker_address/$worker_port")
+    echo "$success" >&3
+    info "Successfully connected worker!"
 }
 
 main() {
@@ -95,6 +97,8 @@ if [ \$? ]; then
 fi
 " > ${name}.git/hooks/post-receive
 run_command chmod +x ${name}.git/hooks/post-receive
+
+echo "$success" >&3
 
 set +e
 main
