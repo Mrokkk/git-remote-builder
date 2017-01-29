@@ -5,8 +5,8 @@ source $base_dir/utils.sh
 
 name=$1
 port=$2
-tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
-tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
+tcp_in_pipe=/tmp/$name-$((RANDOM % 200))-workerd-in-$(date +%s)
+tcp_out_pipe=/tmp/$name-$((RANDOM % 200))-workerd-out-$(date +%s)
 repo_address=""
 
 workerd_stop() {

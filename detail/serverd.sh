@@ -6,8 +6,8 @@ source $base_dir/utils.sh
 name=$1
 port=$2
 build_number=0
-tcp_in_pipe=/tmp/$name-worker-in-tcp-$(date +%s)
-tcp_out_pipe=/tmp/$name-worker-out-tcp-$(date +%s)
+tcp_in_pipe=/tmp/$name-$((RANDOM % 200))-serverd-in-$(date +%s)
+tcp_out_pipe=/tmp/$name-$((RANDOM % 200))-serverd-out-$(date +%s)
 workers=()
 
 serverd_stop() {
