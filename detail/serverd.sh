@@ -19,6 +19,7 @@ serverd_stop() {
 
 read_build_log() {
     local worker=$1
+    local number=$2
     local log_name=${worker//\//-}
     info "Reading build log from $worker"
     exec {worker_fd}<>/dev/tcp/$worker
@@ -33,7 +34,7 @@ read_build_log() {
         fi
         echo $line >> $log_name
     done
-    run_command "cp $log_name $log_name.$build_number"
+    run_command "cp $log_name $log_name.$number"
 }
 
 serverd_build() {
@@ -41,7 +42,7 @@ serverd_build() {
     log=$PWD/log
     for worker in ${workers[@]}; do
         echo "build $build_number $branch" > /dev/tcp/$worker
-        read_build_log $worker &
+        read_build_log $worker $build_number &
     done
     build_number=$((build_number+1))
 }

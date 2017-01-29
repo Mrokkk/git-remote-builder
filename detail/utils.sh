@@ -34,7 +34,7 @@ get_server_port() {
 
 run_command() {
     local com=$@
-    local log=/tmp/log-$(date +%s)
+    local log=/tmp/log-$(date +%s)-$((RANDOM % 20000))
     info "Running: \"$com\""
     if ! eval "$com" &>$log; then
         cat $log
