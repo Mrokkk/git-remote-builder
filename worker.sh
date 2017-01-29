@@ -49,6 +49,14 @@ worker_status() {
     fi
 }
 
+worker_log() {
+    local log_name=$name-workerd-log
+    if [ ! -e $log_name ]; then
+        die "No such worker!"
+    fi
+    less -r $log_name
+}
+
 worker_list() {
     for d in $(ls -d $base_dir/*-workspace/); do
         if [ -e $d/.lock ]; then

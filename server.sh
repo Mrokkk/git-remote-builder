@@ -71,6 +71,9 @@ case "$operation" in
             die "Cannot connect to worker!"
         fi
         ;;
+    log)
+        less -r $name-serverd-log
+        ;;
     ls|list)
         for d in $(ls -d $base_dir/*-workspace/); do
             if [ -e $d/.lock ]; then

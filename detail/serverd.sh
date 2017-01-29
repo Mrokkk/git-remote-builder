@@ -47,7 +47,7 @@ serverd_build() {
 }
 
 serverd_connect() {
-    info "Connecting to $1:$2 and sending building script $3"
+    info "Connecting to $1/$2 and sending building script $3"
     local worker_address=$1
     local worker_port=$2
     local building_script=$3
