@@ -26,13 +26,14 @@ read_build_log() {
     if [ "$start_code" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
-    touch $log_name
+    run_command "touch $log_name"
     while read -t $TIMEOUT line <&${worker_fd}; do
         if [ "$line" == "$MSG_STOP_TRANSMISSION" ]; then
             break
         fi
         echo $line >> $log_name
     done
+    run_command "cp $log_name $log_name.$build_number"
 }
 
 serverd_build() {
