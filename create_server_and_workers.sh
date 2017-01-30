@@ -18,6 +18,10 @@ operation=$1
 name=$2
 source $3
 
+clone_and_checkout="git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd .."
+star_worker_and_read_port="port=\$(repo/worker.sh start $name | grep Started | awk '{print \$NF}')"
+stop_server="cd $server_path; repo/server.sh stop $name"
+
 server_workers_start() {
     worker_config=$(mktemp)
     for line in "${workers[@]}"; do
@@ -25,13 +29,13 @@ server_workers_start() {
         scripts+=("$script")
         if hostname_is_local $hostname; then
             mkdir -p $location && cd $location
-            git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd ..
-            port=$(repo/worker.sh start $name | grep Started | awk '{print $NF}')
+            eval "$clone_and_checkout"
+            eval "$star_worker_and_read_port"
             echo "$hostname $port $script" >> $worker_config
         else
             ssh "$hostname" "mkdir -p $location && cd $location
-            git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd ..
-            port=\$(repo/worker.sh start $name | grep Started | awk '{print \$NF}')
+            $clone_and_checkout
+            $star_worker_and_read_port
             echo \"$hostname \$port $server_path/$(basename $script)\" > worker"
             temp=$(mktemp)
             scp $hostname:$location/worker $temp
@@ -45,17 +49,16 @@ server_workers_start() {
        for script in "${scripts[@]}"; do
            cp $script .
        done
-       git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd ..
+       eval "$clone_and_checkout"
        cp $worker_config ./workers
        repo/server.sh start $name -c workers
     else
-        ssh $server "mkdir -p $server_path
-        cd $server_path
-        git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd .."
+        ssh $server "mkdir -p $server_path && cd $server_path
+        $clone_and_checkout"
         scp $worker_config $server:$server_path/workers
         set -x
         for script in "${scripts[@]}"; do
-            scp $script $server:$server_path/$(basename $script)
+            scp $script $server:$server_path/
         done
         ssh $server "cd $server_path; repo/server.sh start $name -c workers"
     fi
@@ -64,11 +67,9 @@ server_workers_start() {
 
 server_workers_stop() {
     if hostname_is_local $server; then
-        cd $server_path
-        repo/server.sh stop $name
+        eval "$stop_server"
     else
-        ssh $server "cd $server_path
-        repo/server.sh stop $name"
+        ssh $server "$stop_server"
     fi
     for line in "${workers[@]}"; do
         read worker_name hostname location script <<< $line
