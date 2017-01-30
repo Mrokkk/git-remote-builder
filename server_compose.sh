@@ -16,7 +16,7 @@ scripts=()
 
 operation=$1
 name=$2
-source $3
+[[ $3 ]] && source $3
 
 clone_and_checkout="git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd .."
 star_worker_and_read_port="port=\$(repo/worker.sh start $name | grep Started | awk '{print \$NF}')"
@@ -98,6 +98,11 @@ server_workers_remove() {
             ssh $hostname "rm -rf $location"
         fi
     done
+}
+
+server_workers_help() {
+    echo "Usage: server_compose.sh {command} {name} {config_file}
+Available commands: start stop remove help"
 }
 
 eval "server_workers_$1"
