@@ -106,6 +106,7 @@ ncat -l -m 1 -k -p $port <&3 >&4 &
 ncat_pid=$!
 
 run_command git init --bare $name.git
+
 info "Creating post-receive hook"
 cat > ${name}.git/hooks/post-receive << EOF
 #!/bin/bash

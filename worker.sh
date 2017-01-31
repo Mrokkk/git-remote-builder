@@ -26,7 +26,7 @@ worker_stop() {
     fi
     echo "stop" > /dev/tcp/localhost/$port
     if [ $? ]; then
-        info "Stopped worker with PID $pid"
+        info "Stopped worker at port $port"
     fi
 }
 

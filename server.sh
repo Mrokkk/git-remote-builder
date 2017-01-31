@@ -66,7 +66,7 @@ server_stop() {
     fi
     echo "$COM_STOP" > /dev/tcp/localhost/$port
     if [ $? ]; then
-        info "Stopped server with PID $pid"
+        info "Stopped server at port $port"
     fi
 }
 
