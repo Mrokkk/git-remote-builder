@@ -59,13 +59,15 @@ serverd_connect() {
     else
         hostname="ssh://$HOSTNAME:"
     fi
+    run_command "gzip -k $building_script"
+    local size=$(wc -c $building_script.gz | awk '{print $1}')
     echo "connect $hostname$workspace/$name.git
-    $MSG_START_TRANSMISSION
-    $(cat $building_script)
-    $MSG_STOP_TRANSMISSION" > /dev/tcp/$worker_address/$worker_port
+    $MSG_START_TRANSMISSION $size" > /dev/tcp/$worker_address/$worker_port
+    ncat $worker_address $worker_port < $building_script.gz >&4
     if [ ! $? ]; then
         error "Cannot send data to worker!"
     fi
+    rm -f $building_script.gz
     read -t $TIMEOUT status </dev/tcp/$worker_address/$worker_port
     if [ "$status" != "$MSG_SUCCESS" ]; then
         error "Connecting to worker failed - no response!"

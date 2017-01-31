@@ -25,17 +25,15 @@ workerd_test() {
 
 workerd_connect() {
     repo_address=$1
-    read -t $TIMEOUT line <&4
+    read -t $TIMEOUT line chars <&4
+    info "Reading $chars bytes"
     if [ "$line" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
-    touch $building_script
-    while read -t $TIMEOUT text <&4; do
-        if [ "$text" == "$MSG_STOP_TRANSMISSION" ]; then
-            break;
-        fi
-        echo $text >> $building_script
-    done
+    rm -rf $building_script $building_script.gz
+    dd of=$building_script.gz bs=$chars count=1 &>/dev/null <&4
+    [[ ! $? ]] && echo "$MSG_FAILED" >&3
+    gzip -d $building_script.gz
     chmod +x $building_script
     echo "$MSG_SUCCESS" >&3
 }

@@ -35,10 +35,9 @@ server_workers_start() {
             run_command "$star_worker_and_read_port"
             run_command "echo \"$hostname $port $script\" >> $worker_config"
         else
-            ssh $hostname "eval \"$(cat $base_dir/detail/utils.sh)\"
-            run_command \"mkdir -p $location && cd $location\"
-            run_command \"$clone_and_checkout\"
-            run_command \"$star_worker_and_read_port\"
+            ssh $hostname "mkdir -p $location && cd $location
+            $clone_and_checkout
+            $star_worker_and_read_port
             echo \"$hostname \$port $server_path/$(basename $script)\" > worker"
             temp=$(mktemp)
             scp $hostname:$location/worker $temp
@@ -56,9 +55,8 @@ server_workers_start() {
        run_command "cp $worker_config ./workers"
        repo/server.sh start $name -c workers
     else
-        ssh $server "eval \"$(cat $base_dir/detail/utils.sh)\"
-        run_command \"mkdir -p $server_path && cd $server_path\"
-        run_command \"$clone_and_checkout\""
+        ssh $server "mkdir -p $server_path && cd $server_path
+        $clone_and_checkout"
         run_command "scp $worker_config $server:$server_path/workers"
         for script in "${scripts[@]}"; do
             run_command "scp $script $server:$server_path/"
