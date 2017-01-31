@@ -15,14 +15,16 @@ builder_branch=$(git rev-parse --abbrev-ref HEAD)
 scripts=()
 
 operation=$1
-name=$2
-[[ $3 ]] && source $3
+[[ $2 ]] && source $2
+
+[[ ! $name ]] && die "No project name given!"
 
 clone_and_checkout="git clone -b $builder_branch https://github.com/mrokkk/git-remote-builder repo"
 star_worker_and_read_port="port=\$(repo/worker.sh start $name | grep Started | awk '{print \$NF}')"
 stop_server="cd $server_path; repo/server.sh stop $name"
 
 server_workers_start() {
+    info "Creating server and workers for project $name"
     worker_config=$(mktemp)
     for line in "${workers[@]}"; do
         read worker_name hostname location script <<< $line

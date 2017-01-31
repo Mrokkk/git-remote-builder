@@ -1,5 +1,7 @@
 #!/bin/bash
 
+name="test"
+
 server="localhost"
 server_path="/home/$USER/server"
 
