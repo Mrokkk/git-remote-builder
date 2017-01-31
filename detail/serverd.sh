@@ -68,7 +68,7 @@ serverd_connect() {
     fi
     read -t $TIMEOUT status </dev/tcp/$worker_address/$worker_port
     if [ "$status" != "$MSG_SUCCESS" ]; then
-        error "Didn't connect to worker - no response!"
+        error "Connecting to worker failed - no response!"
         echo "$failed" >&3
         return
     fi
@@ -107,14 +107,15 @@ ncat_pid=$!
 
 run_command git init --bare $name.git
 info "Creating post-receive hook"
-echo "#!/bin/bash
+cat > ${name}.git/hooks/post-receive << EOF
+#!/bin/bash
 read oldrev newrev ref
-echo \"Adding a build \$newrev to the queue...\"
-echo \"build \${ref#refs/heads/}\" > /dev/tcp/localhost/$port
+echo "Adding a build \$newrev to the queue..."
+echo "build \${ref#refs/heads/}" > /dev/tcp/localhost/$port
 if [ \$? ]; then
-    echo \"OK\"
+    echo "OK"
 fi
-" > ${name}.git/hooks/post-receive
+EOF
 run_command chmod +x ${name}.git/hooks/post-receive
 
 echo "$MSG_SUCCESS" >&3
