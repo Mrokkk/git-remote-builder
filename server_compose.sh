@@ -18,7 +18,7 @@ operation=$1
 name=$2
 [[ $3 ]] && source $3
 
-clone_and_checkout="git clone https://github.com/mrokkk/git-remote-builder repo && cd repo && git checkout $builder_branch && cd .."
+clone_and_checkout="git clone -b $builder_branch https://github.com/mrokkk/git-remote-builder repo"
 star_worker_and_read_port="port=\$(repo/worker.sh start $name | grep Started | awk '{print \$NF}')"
 stop_server="cd $server_path; repo/server.sh stop $name"
 
@@ -28,10 +28,10 @@ server_workers_start() {
         read worker_name hostname location script <<< $line
         scripts+=("$script")
         if hostname_is_local $hostname; then
-            mkdir -p $location && cd $location
-            eval "$clone_and_checkout"
-            eval "$star_worker_and_read_port"
-            echo "$hostname $port $script" >> $worker_config
+            run_command "mkdir -p $location && cd $location"
+            run_command "$clone_and_checkout"
+            run_command "$star_worker_and_read_port"
+            run_command "echo \"$hostname $port $script\" >> $worker_config"
         else
             ssh "$hostname" "mkdir -p $location && cd $location
             $clone_and_checkout
@@ -45,12 +45,12 @@ server_workers_start() {
     done
     sleep 3
     if hostname_is_local $server; then
-       mkdir -p $server_path && cd $server_path
+       run_command "mkdir -p $server_path && cd $server_path"
        for script in "${scripts[@]}"; do
-           cp $script .
+           run_command "cp $script ."
        done
-       eval "$clone_and_checkout"
-       cp $worker_config ./workers
+       run_command "$clone_and_checkout"
+       run_command "cp $worker_config ./workers"
        repo/server.sh start $name -c workers
     else
         ssh $server "mkdir -p $server_path && cd $server_path
