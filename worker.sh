@@ -40,7 +40,7 @@ worker_status() {
     if [ ! $port ]; then
         die "No $name worker running"
     fi
-    echo "$COM_TEST" > /dev/tcp/localhost/$port
+    echo "$CMD_TEST" > /dev/tcp/localhost/$port
     read -t $TIMEOUT response < /dev/tcp/localhost/$port
     if [ "$response" == "$MSG_SUCCESS" ]; then
         info "$name: OK"

@@ -64,7 +64,7 @@ server_stop() {
     if [ "$port" == "" ]; then
         die "No such server!"
     fi
-    echo "$COM_STOP" > /dev/tcp/localhost/$port
+    echo "$CMD_STOP" > /dev/tcp/localhost/$port
     if [ $? ]; then
         info "Stopped server at port $port"
     fi
@@ -77,7 +77,7 @@ server_remove() {
 
 server_connect() {
     local server_port=$(get_server_port $name .)
-    echo "$COM_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
+    echo "$CMD_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
     read -t $TIMEOUT response < /dev/tcp/localhost/$server_port
     if [ "$response" == "$MSG_SUCCESS" ]; then
         info "Added worker $address:$port for $name"

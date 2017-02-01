@@ -6,12 +6,15 @@ source $base_dir/utils.sh
 name=$1
 port=$2
 build_number=0
-tcp_in_pipe=/tmp/$name-$((RANDOM % 200))-serverd-in-$(date +%s)
-tcp_out_pipe=/tmp/$name-$((RANDOM % 200))-serverd-out-$(date +%s)
+tcp_in_pipe=$(mktemp -u)
+tcp_out_pipe=$(mktemp -u)
 workers=()
+key=$(openssl rand -base64 32)
 
 serverd_stop() {
     info "Shutting down server..."
+    exec &3>-
+    exec &4>-
     run_command rm -rf $tcp_in_pipe $tcp_out_pipe $workspace/.lock
     run_command kill $ncat_pid
     exit 0
@@ -25,6 +28,7 @@ read_build_log() {
     exec {worker_fd}<>/dev/tcp/$worker
     read -t $TIMEOUT start_code <&${worker_fd}
     if [ "$start_code" != "$MSG_START_TRANSMISSION" ]; then
+        exec &$worker_fd>-
         return
     fi
     run_command "rm -f $log_name"
@@ -34,6 +38,7 @@ read_build_log() {
         fi
         echo $line >> $log_name
     done
+    exec &$worker_fd>-
     run_command "cp $log_name $log_name.$number"
 }
 
@@ -42,7 +47,7 @@ serverd_build() {
     log=$PWD/log
     for worker in ${workers[@]}; do
         info "Sending build #$build_number command to $worker"
-        echo "build $build_number $branch" > /dev/tcp/$worker
+        echo "build $build_number $branch" | openssl base64 -k $key > /dev/tcp/$worker
         # read_build_log $worker $build_number &
     done
     build_number=$((build_number+1))
@@ -60,14 +65,15 @@ serverd_connect() {
         hostname="ssh://$HOSTNAME:"
     fi
     run_command "gzip -k $building_script"
-    local size=$(wc -c $building_script.gz | awk '{print $1}')
-    echo "connect $hostname$workspace/$name.git
+    openssl base64 -k $key -in $building_script.gz -out $building_script.gz.enc
+    local size=$(wc -c $building_script.gz.enc | awk '{print $1}')
+    echo "connect $key $hostname$workspace/$name.git
     $MSG_START_TRANSMISSION $size" > /dev/tcp/$worker_address/$worker_port
-    ncat $worker_address $worker_port < $building_script.gz >&4
+    ncat $worker_address $worker_port < $building_script.gz.enc >&4
     if [ ! $? ]; then
         error "Cannot send data to worker!"
     fi
-    rm -f $building_script.gz
+    rm -f $building_script.gz*
     read -t $TIMEOUT status </dev/tcp/$worker_address/$worker_port
     if [ "$status" != "$MSG_SUCCESS" ]; then
         error "Connecting to worker failed - no response!"

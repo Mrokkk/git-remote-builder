@@ -8,6 +8,8 @@ port=$2
 tcp_in_pipe=/tmp/$name-$((RANDOM % 200))-workerd-in-$(date +%s)
 tcp_out_pipe=/tmp/$name-$((RANDOM % 200))-workerd-out-$(date +%s)
 repo_address=""
+connected=
+key=
 
 workerd_stop() {
     info "Shutting down worker..."
@@ -24,18 +26,25 @@ workerd_test() {
 }
 
 workerd_connect() {
-    repo_address=$1
+    if [ $connected ]; then
+        echo "$MSG_FAILED" >&3
+        info "Already connected!"
+    fi
+    key=$1
+    repo_address=$2
     read -t $TIMEOUT line chars <&4
     info "Reading $chars bytes"
     if [ "$line" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
-    rm -rf $building_script $building_script.gz
-    dd of=$building_script.gz bs=$chars count=1 &>/dev/null <&4
+    rm -rf $building_script*
+    dd of=$building_script.gz.enc bs=$chars count=1 &>/dev/null <&4
     [[ ! $? ]] && echo "$MSG_FAILED" >&3
+    openssl base64 -d -k $key -in $building_script.gz.enc -out $building_script.gz
     gzip -d $building_script.gz
     chmod +x $building_script
     echo "$MSG_SUCCESS" >&3
+    connected=true
 }
 
 workerd_build() {
@@ -56,7 +65,7 @@ workerd_build() {
     run_command git checkout origin/$branch
     run_command git submodule update --init --recursive
     info "$name build #$build_number @ `LANG=C date`" > $log
-    unbuffer $building_script | tee -a $log
+    unbuffer $building_script | tee -a $log > /dev/null
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
     else
@@ -69,6 +78,9 @@ workerd_build() {
 main() {
     while true; do
         read msg <&4
+        if ! grep -Eq 'connect|test' <<< $msg; then
+            msg=$(openssl base64 -d -k $key <<< $msg)
+        fi
         eval "workerd_$msg"
         if [ ! $? ]; then
             echo "$MSG_BAD_MESSAGE" >&3
