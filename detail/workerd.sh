@@ -60,14 +60,23 @@ workerd_build() {
     old_pwd=$PWD
     log=$old_pwd/log
     if [ ! -d $name ]; then
-        run_command git clone $repo_address $name
+        run_command "git clone $repo_address $name"
+        if [ ! $? ]; then
+            error "Cannot clone repo!"
+            echo "$MSG_FAILED" >&3
+        fi
     fi
     cd $name
-    run_command git fetch origin $branch
-    run_command git checkout origin/$branch
-    run_command git submodule update --init --recursive
+    local temp_fifo=$(mkfifo /tmp/`mktemp -u`)
+    local log_port=$(get_free_port)
+    ncat -l -m 1 -k -p $log_port <$temp_fifo >/dev/null &
+    local log_nc_pid=$!
+    echo "$MSG_SUCCESS $log_port" >&3
+    run_command "git fetch origin $branch"
+    run_command "git checkout origin/$branch"
+    run_command "git submodule update --init --recursive"
     info "$name build #$build_number @ `LANG=C date`" > $log
-    unbuffer $building_script | tee -a $log > /dev/null
+    unbuffer $building_script | tee -a $log >/dev/null
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
     else

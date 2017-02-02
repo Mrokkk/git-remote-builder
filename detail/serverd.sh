@@ -44,11 +44,17 @@ read_build_log() {
 
 serverd_build() {
     local branch=$1
-    log=$PWD/log
+    local log=$PWD/log
     for worker in ${workers[@]}; do
         info "Sending build #$build_number command to $worker"
-        echo "build $build_number $branch" | openssl base64 -k $key > /dev/tcp/$worker
-        # read_build_log $worker $build_number &
+        echo "build $build_number $branch" | openssl base64 -k $key >/dev/tcp/$worker
+        if ! read -t $TIMEOUT response log_port </dev/tcp/$worker; then
+            error "Cannot read response from worker"
+            continue
+        fi
+        local worker_hostname=$(dirname $worker)
+        info "Got build log on $worker:$log_port"
+        # read_build_log $worker $build_number $log_port &
     done
     build_number=$((build_number+1))
 }
