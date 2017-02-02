@@ -5,8 +5,8 @@ source $base_dir/utils.sh
 
 name=$1
 port=$2
-tcp_in_pipe=/tmp/$name-$((RANDOM % 200))-workerd-in-$(date +%s)
-tcp_out_pipe=/tmp/$name-$((RANDOM % 200))-workerd-out-$(date +%s)
+tcp_in_pipe=$(mktemp -u workerd.XXXXX)
+tcp_out_pipe=$(mktemp -u workerd.XXXXX)
 repo_address=""
 connected=
 key=
