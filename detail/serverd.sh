@@ -13,8 +13,8 @@ key=$(openssl rand -base64 32)
 
 serverd_stop() {
     info "Shutting down server..."
-    exec &3>-
-    exec &4>-
+    exec 3>&-
+    exec 4>&-
     run_command rm -rf $tcp_in_pipe $tcp_out_pipe $workspace/.lock
     run_command kill $ncat_pid
     exit 0
@@ -22,23 +22,18 @@ serverd_stop() {
 
 read_build_log() {
     local worker=$1
-    local number=$2
-    local log_name=${worker//\//-}
-    info "Reading build log from $worker"
-    exec {worker_fd}<>/dev/tcp/$worker
-    read -t $TIMEOUT start_code <&${worker_fd}
-    if [ "$start_code" != "$MSG_START_TRANSMISSION" ]; then
-        exec &$worker_fd>-
-        return
-    fi
-    run_command "rm -f $log_name"
-    while read -t $TIMEOUT line <&${worker_fd}; do
-        if [ "$line" == "$MSG_STOP_TRANSMISSION" ]; then
-            break
-        fi
+    local port=$2
+    local number=$3
+    local log_name=${4//\//-}
+    info "Reading build log from $worker:$port"
+    sleep 0.2
+    : > $log_name
+    exec {build_socket}<>/dev/tcp/$worker/$port
+    while read line <&$build_socket; do
+        [[ "$line" == "$MSG_STOP_TRANSMISSION" ]] && info "Got stop!" && break
         echo $line >> $log_name
     done
-    exec &$worker_fd>-
+    exec {build_socket}>&-
     run_command "cp $log_name $log_name.$number"
 }
 
@@ -53,8 +48,8 @@ serverd_build() {
             continue
         fi
         local worker_hostname=$(dirname $worker)
-        info "Got build log on $worker:$log_port"
-        # read_build_log $worker $build_number $log_port &
+        info "Got build log on $worker_hostname:$log_port"
+        read_build_log $worker_hostname $log_port $build_number $worker &
     done
     build_number=$((build_number+1))
 }

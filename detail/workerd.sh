@@ -67,21 +67,27 @@ workerd_build() {
         fi
     fi
     cd $name
-    local temp_fifo=$(mkfifo /tmp/`mktemp -u`)
+    local temp_fifo=$(mktemp -u)
+    run_command "mkfifo $temp_fifo"
     local log_port=$(get_free_port)
-    ncat -l -m 1 -k -p $log_port <$temp_fifo >/dev/null &
-    local log_nc_pid=$!
+    exec {pipe}<>$temp_fifo
+    ncat -l -p $log_port <&$pipe &
+    pid=$!
     echo "$MSG_SUCCESS $log_port" >&3
     run_command "git fetch origin $branch"
     run_command "git checkout origin/$branch"
     run_command "git submodule update --init --recursive"
-    info "$name build #$build_number @ `LANG=C date`" > $log
-    unbuffer $building_script | tee -a $log >/dev/null
+    info "$name build #$build_number @ `LANG=C date`" | tee $log >&$pipe
+    unbuffer $building_script | tee -a $log >&$pipe
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
-        info "Build #$build_number \e[1;32mPASSED\e[0m" >> $log
+        info "Build #$build_number \e[1;32mPASSED\e[0m" | tee -a $log >&$pipe
     else
-        info "Build #$build_number \e[1;31mFAILED\e[0m" >> $log
+        info "Build #$build_number \e[1;31mFAILED\e[0m" | tee -a $log >&$pipe
     fi
+    echo "$MSG_STOP_TRANSMISSION" >&$pipe
+    wait $pid
+    exec {pipe}>&-
+    rm -f $temp_fifo
     cp $log $old_pwd/log.$build_number
     cd $old_pwd
 }
