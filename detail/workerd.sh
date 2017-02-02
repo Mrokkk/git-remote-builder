@@ -43,6 +43,7 @@ workerd_connect() {
     openssl base64 -d -k $key -in $building_script.gz.enc -out $building_script.gz
     gzip -d $building_script.gz
     chmod +x $building_script
+    rm -f $building_script.gz*
     echo "$MSG_SUCCESS" >&3
     connected=true
 }
@@ -78,7 +79,7 @@ workerd_build() {
 main() {
     while true; do
         read msg <&4
-        if ! grep -Eq 'connect|test' <<< $msg; then
+        if ! grep -Eq 'connect|test|stop' <<< $msg; then
             msg=$(openssl base64 -d -k $key <<< $msg)
         fi
         if [ "$msg" == "" ]; then
