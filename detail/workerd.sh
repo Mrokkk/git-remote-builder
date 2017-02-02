@@ -81,6 +81,11 @@ main() {
         if ! grep -Eq 'connect|test' <<< $msg; then
             msg=$(openssl base64 -d -k $key <<< $msg)
         fi
+        if [ "$msg" == "" ]; then
+            error "Bad data"
+            echo "$MSG_FAILED" >&3
+            continue
+        fi
         eval "workerd_$msg"
         if [ ! $? ]; then
             echo "$MSG_BAD_MESSAGE" >&3
