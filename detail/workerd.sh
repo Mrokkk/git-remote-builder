@@ -28,7 +28,7 @@ workerd_test() {
 workerd_connect() {
     if [ $connected ]; then
         echo "$MSG_FAILED" >&3
-        info "Already connected!"
+        info "Already connected to server!"
     fi
     key=$1
     repo_address=$2
@@ -41,10 +41,11 @@ workerd_connect() {
     dd of=$building_script.gz.enc bs=$chars count=1 &>/dev/null <&4
     [[ ! $? ]] && echo "$MSG_FAILED" >&3
     openssl base64 -d -k $key -in $building_script.gz.enc -out $building_script.gz
-    gzip -d $building_script.gz
-    chmod +x $building_script
-    rm -f $building_script.gz*
+    run_command "gzip -d $building_script.gz"
+    run_command "chmod +x $building_script"
+    run_command "rm -f $building_script.gz*"
     echo "$MSG_SUCCESS" >&3
+    info "Successfully read script!"
     connected=true
 }
 
