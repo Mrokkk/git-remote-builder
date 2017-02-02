@@ -13,11 +13,11 @@ key=
 
 workerd_stop() {
     info "Shutting down worker..."
-    run_command rm -rf $workspace/.lock
+    run_command "rm -rf $workspace/.lock"
     exec 3>&-
     exec 4>&-
-    run_command rm -rf $tcp_in_pipe $tcp_out_pipe
-    run_command kill $ncat_pid
+    run_command "rm -rf $tcp_in_pipe $tcp_out_pipe"
+    run_command "kill $ncat_pid"
     exit 0
 }
 
