@@ -6,8 +6,8 @@ source $base_dir/utils.sh
 name=$1
 port=$2
 build_number=0
-tcp_in_pipe=$(mktemp -u serverd.XXXX)
-tcp_out_pipe=$(mktemp -u serverd.XXXX)
+tcp_in_pipe=/tmp/$(mktemp -u serverd.XXXX)
+tcp_out_pipe=/tmp/$(mktemp -u serverd.XXXX)
 workers=()
 key=$(openssl rand -base64 32)
 

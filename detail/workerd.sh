@@ -5,8 +5,8 @@ source $base_dir/utils.sh
 
 name=$1
 port=$2
-tcp_in_pipe=$(mktemp -u workerd.XXXXX)
-tcp_out_pipe=$(mktemp -u workerd.XXXXX)
+tcp_in_pipe=/tmp/$(mktemp -u workerd.XXXXX)
+tcp_out_pipe=/tmp/$(mktemp -u workerd.XXXXX)
 repo_address=""
 connected=
 key=
