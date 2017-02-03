@@ -29,6 +29,7 @@ workerd_connect() {
     if [ $connected ]; then
         echo "$MSG_FAILED" >&3
         info "Already connected to server!"
+        return
     fi
     key=$1
     repo_address=$2

@@ -30,7 +30,7 @@ read_build_log() {
     : > $log_name
     exec {build_socket}<>/dev/tcp/$worker/$port
     while read line <&$build_socket; do
-        [[ "$line" == "$MSG_STOP_TRANSMISSION" ]] && info "Got stop!" && break
+        [[ "$line" == "$MSG_STOP_TRANSMISSION" ]] && break
         echo $line >> $log_name
     done
     exec {build_socket}>&-
