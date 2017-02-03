@@ -64,6 +64,8 @@ server_workers_start() {
         ssh $server "cd $server_path; repo/server.sh start $name -c workers"
     fi
     run_command "rm -f $worker_config"
+    info "Now you can add path $server:$server_path/$name-workspace/$name.git to yours Git project remote"
+    info "On every push to that remote, builds will be run"
 }
 
 server_workers_stop() {
