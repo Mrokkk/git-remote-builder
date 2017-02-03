@@ -26,7 +26,7 @@ read_build_log() {
     local number=$3
     local log_name=${4//\//-}
     info "Reading build log from $worker:$port"
-    sleep 0.2
+    sleep 1
     : > $log_name
     exec {build_socket}<>/dev/tcp/$worker/$port
     while read line <&$build_socket; do
@@ -43,7 +43,7 @@ serverd_build() {
     for worker in ${workers[@]}; do
         info "Sending build #$build_number command to $worker"
         echo "build $build_number $branch" | openssl base64 -k $key >/dev/tcp/$worker
-        if ! read -t $TIMEOUT response log_port </dev/tcp/$worker; then
+        if ! read -t 60 response log_port </dev/tcp/$worker; then
             error "Cannot read response from worker"
             continue
         fi
