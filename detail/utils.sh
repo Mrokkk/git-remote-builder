@@ -35,7 +35,7 @@ get_server_port() {
 run_command() {
     local com=$@
     local log=$(mktemp)
-    info "Running: \"$com\""
+    # info "Running: \"$com\""
     if ! eval "$com" &>$log; then
         cat $log
         error "Command \"$com\" FAILED"

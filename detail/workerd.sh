@@ -33,13 +33,13 @@ workerd_connect() {
     fi
     key=$1
     repo_address=$2
-    read -t $TIMEOUT line chars <&4
-    info "Reading $chars bytes"
+    read -t $TIMEOUT line bytes <&4
+    info "Reading $bytes bytes"
     if [ "$line" != "$MSG_START_TRANSMISSION" ]; then
         return
     fi
     rm -rf $building_script*
-    dd of=$building_script.gz.enc bs=$chars count=1 &>/dev/null <&4
+    dd of=$building_script.gz.enc bs=$bytes count=1 &>/dev/null <&4
     [[ ! $? ]] && echo "$MSG_FAILED" >&3
     openssl base64 -d -k $key -in $building_script.gz.enc -out $building_script.gz
     run_command "gzip -d $building_script.gz"
