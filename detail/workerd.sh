@@ -53,6 +53,7 @@ workerd_build() {
     local build_number=$1
     local branch=$2
     local commit=$3
+    info "Build #$build_number for branch $branch ..."
     if [ ! -e build.sh ]; then
         error "No building script!"
         return
@@ -81,10 +82,13 @@ workerd_build() {
     unbuffer $building_script | tee -a $log >&$pipe
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         info "Build #$build_number \e[1;32mPASSED\e[0m" | tee -a $log >&$pipe
+        info "Build #$build_number for branch $branch PASSED"
     else
         info "Build #$build_number \e[1;31mFAILED\e[0m" | tee -a $log >&$pipe
+        info "Build #$build_number for branch $branch FAILED"
     fi
     echo "$MSG_STOP_TRANSMISSION" >&$pipe
+    info "Waiting for server to read log..."
     wait $pid
     exec {pipe}>&-
     rm -f $temp_fifo

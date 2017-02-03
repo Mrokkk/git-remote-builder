@@ -43,6 +43,7 @@ serverd_build() {
     for worker in ${workers[@]}; do
         info "Sending build #$build_number command to $worker"
         echo "build $build_number $branch" | openssl base64 -k $key >/dev/tcp/$worker
+        # FIXME: timeout value
         if ! read -t 60 response log_port </dev/tcp/$worker; then
             error "Cannot read response from worker"
             continue
