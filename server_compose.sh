@@ -27,7 +27,7 @@ server_workers_start() {
     info "Creating server and workers for project $name"
     worker_config=$(mktemp)
     for line in "${workers[@]}"; do
-        read worker_name hostname location script <<< $line
+        read hostname location script <<< $line
         scripts+=("$script")
         if hostname_is_local $hostname; then
             run_command "mkdir -p $location && cd $location"
@@ -75,7 +75,7 @@ server_workers_stop() {
         ssh $server "$stop_server"
     fi
     for line in "${workers[@]}"; do
-        read worker_name hostname location script <<< $line
+        read hostname location script <<< $line
         if hostname_is_local $hostname; then
             cd $location
             repo/worker.sh stop $name
@@ -94,7 +94,7 @@ server_workers_remove() {
         ssh $server "rm -rf $server_path"
     fi
     for line in "${workers[@]}"; do
-        read worker_name hostname location script <<< $line
+        read hostname location script <<< $line
         if hostname_is_local $hostname; then
             rm -rf $location
         else

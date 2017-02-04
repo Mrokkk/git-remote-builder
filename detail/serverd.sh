@@ -9,6 +9,7 @@ build_number=0
 tcp_in_pipe=/tmp/$(mktemp -u serverd.XXXX)
 tcp_out_pipe=/tmp/$(mktemp -u serverd.XXXX)
 workers=()
+jobs=()
 key=$(openssl rand -base64 32)
 
 serverd_stop() {
@@ -85,6 +86,12 @@ serverd_connect() {
     workers+=("$worker_address/$worker_port")
     echo "$MSG_SUCCESS" >&3
     info "Successfully connected worker!"
+}
+
+serverd_add_job() {
+    # TODO
+    local job_name=$1
+    local job_script=$2
 }
 
 main() {
