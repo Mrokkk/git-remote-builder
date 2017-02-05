@@ -88,7 +88,6 @@ server_connect() {
     echo "$MSG_START_TRANSMISSION" >&$serverd
     echo "$CMD_CONNECT $address $port $building_script" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd
     echo "$MSG_STOP_TRANSMISSION" >&$serverd
-    sleep 0.5
     read -t $TIMEOUT response <&$serverd
     if [ "$response" == "$MSG_SUCCESS" ]; then
         info "Added worker $address:$port for $name"
@@ -103,7 +102,6 @@ server_add_job() {
     exec {serverd}<>/dev/tcp/localhost/$server_port
     echo "$MSG_START_TRANSMISSION" >&$serverd
     echo "$CMD_ADD_JOB $job_name $building_script" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd
-    sleep 0.5
     read -t $TIMEOUT response <&$serverd
     if [ "$response" == "$MSG_SUCCESS" ]; then
         info "Added job $job_name for $name"
