@@ -94,6 +94,8 @@ serverd_addjob() {
     local job_name=$1
     local job_script=$(readlink -f $2)
     info "Adding job $job_name with script $job_script"
+    mkdir -p $name-workspace/jobs/$job_name
+    cp $job_script $name-workspace/jobs/$job_name
     jobs+=("$job_name $job_script")
     echo "$MSG_SUCCESS" >&3
 }
