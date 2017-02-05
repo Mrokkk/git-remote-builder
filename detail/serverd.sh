@@ -89,7 +89,7 @@ serverd_connect() {
     info "Successfully connected worker!"
 }
 
-serverd_add_job() {
+serverd_addjob() {
     local job_name=$1
     local job_script=$2
     jobs+=("$job_name $(readlink -f $job_script)")

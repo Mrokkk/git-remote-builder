@@ -33,6 +33,7 @@ while true; do
         -j|--job-name)
             job_name=$2
             shift 2
+            ;;
         *)
             if [ "$1" == "" ]; then
                 break
@@ -98,7 +99,7 @@ server_connect() {
 }
 
 server_add_job() {
-    local server_por$(get_server_port $name .)
+    local server_port=$(get_server_port $name .)
     exec {serverd}<>/dev/tcp/localhost/$server_port
     echo "$MSG_START_TRANSMISSION" >&$serverd
     echo "$CMD_ADD_JOB $job_name $building_script" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd

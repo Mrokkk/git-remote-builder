@@ -10,5 +10,7 @@ workers=(
     "localhost /home/$USER/test2 $PWD/example_building_script.sh"
 )
 
-jobs=()
+jobs=(
+    "build $PWD/example_building_script.sh"
+)
 
