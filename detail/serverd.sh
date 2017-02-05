@@ -9,6 +9,7 @@ build_number=0
 tcp_in_pipe=/tmp/$(mktemp -u serverd.XXXX)
 tcp_out_pipe=/tmp/$(mktemp -u serverd.XXXX)
 workers=()
+free_workers=()
 jobs=()
 key=$(openssl rand -base64 32)
 priv_key=$(openssl genrsa 2048 2>/dev/null) # FIXME: change key size
@@ -22,7 +23,7 @@ serverd_stop() {
     exit 0
 }
 
-read_build_log() {
+read_job_log() {
     local worker=$1
     local port=$2
     local number=$3
@@ -37,6 +38,7 @@ read_build_log() {
     done
     exec {build_socket}>&-
     run_command "cp $log_name $log_name.$number"
+    free_workers+=("$worker/$port")
 }
 
 serverd_build() {
@@ -52,7 +54,7 @@ serverd_build() {
         fi
         local worker_hostname=$(dirname $worker)
         info "Got build log on $worker_hostname:$log_port"
-        read_build_log $worker_hostname $log_port $build_number $worker &
+        read_job_log $worker_hostname $log_port $build_number $worker &
     done
     build_number=$((build_number+1))
 }
@@ -85,6 +87,7 @@ serverd_connect() {
         return
     fi
     workers+=("$worker_address/$worker_port")
+    free_workers+=("$worker_address/$worker_port")
     echo "$MSG_SUCCESS" >&3
     info "Successfully connected worker!"
 }
