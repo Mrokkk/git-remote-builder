@@ -21,12 +21,13 @@ worker_start() {
 
 worker_stop() {
     local pid=$(get_worker_pid $name .)
+    local port=$(get_server_port $name .)
     if [ "$pid" == "" ]; then
         die "No such worker!"
     fi
     kill $pid
     if [ $? ]; then
-        info "Stopped worker"
+        info "Stopped worker at port $port"
     fi
 }
 
