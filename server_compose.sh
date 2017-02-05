@@ -56,7 +56,7 @@ server_workers_start() {
        repo/server.sh start $name -c workers
        for job in "${jobs[@]}"; do
            read job_name building_script <<<$job
-           repo/server.sh add_job $name -j job_name -s $building_script
+           repo/server.sh add_job $name -j $job_name -s $building_script
        done
     else
         ssh $server "mkdir -p $server_path && cd $server_path

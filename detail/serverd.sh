@@ -38,7 +38,6 @@ read_job_log() {
     done
     exec {build_socket}>&-
     run_command "cp $log_name $log_name.$number"
-    free_workers+=("$worker/$port")
 }
 
 serverd_build() {
@@ -87,15 +86,15 @@ serverd_connect() {
         return
     fi
     workers+=("$worker_address/$worker_port")
-    free_workers+=("$worker_address/$worker_port")
     echo "$MSG_SUCCESS" >&3
     info "Successfully connected worker!"
 }
 
 serverd_addjob() {
     local job_name=$1
-    local job_script=$2
-    jobs+=("$job_name $(readlink -f $job_script)")
+    local job_script=$(readlink -f $2)
+    info "Adding job $job_name with script $job_script"
+    jobs+=("$job_name $job_script")
     echo "$MSG_SUCCESS" >&3
 }
 
