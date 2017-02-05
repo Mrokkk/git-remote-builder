@@ -128,6 +128,7 @@ fi
 
 set -e
 
+umask 077
 run_command "touch log"
 run_command "echo $port >.lock"
 run_command "echo $$ >.pid"
