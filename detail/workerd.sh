@@ -100,7 +100,7 @@ workerd_build() {
 main() {
     while true; do
         read msg <&4
-        if ! grep -Eq 'connect|test|stop' <<< $msg; then
+        if ! grep -Eq 'connect|test' <<< $msg; then
             msg=$(openssl base64 -d -k $key <<< $msg)
         fi
         if [ "$msg" == "" ]; then
