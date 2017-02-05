@@ -64,7 +64,10 @@ server_stop() {
     if [ "$port" == "" ]; then
         die "No such server!"
     fi
-    echo "$CMD_STOP" > /dev/tcp/localhost/$port
+    exec {serverd}<>/dev/tcp/localhost/$port
+    echo "$MSG_START_TRANSMISSION" >&$serverd
+    echo "$CMD_STOP" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd
+    echo "$MSG_STOP_TRANSMISSION" >&$serverd
     if [ $? ]; then
         info "Stopped server at port $port"
     fi
@@ -77,13 +80,18 @@ server_remove() {
 
 server_connect() {
     local server_port=$(get_server_port $name .)
-    echo "$CMD_CONNECT $address $port $building_script" > /dev/tcp/localhost/$server_port
-    read -t $TIMEOUT response < /dev/tcp/localhost/$server_port
+    exec {serverd}<>/dev/tcp/localhost/$server_port
+    echo "$MSG_START_TRANSMISSION" >&$serverd
+    echo "$CMD_CONNECT $address $port $building_script" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd
+    echo "$MSG_STOP_TRANSMISSION" >&$serverd
+    sleep 0.5
+    read -t $TIMEOUT response <&$serverd
     if [ "$response" == "$MSG_SUCCESS" ]; then
         info "Added worker $address:$port for $name"
     else
         die "Cannot connect to worker!"
     fi
+    exec {serverd}>&-
 }
 
 server_log() {

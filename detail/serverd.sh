@@ -11,6 +11,7 @@ tcp_out_pipe=/tmp/$(mktemp -u serverd.XXXX)
 workers=()
 jobs=()
 key=$(openssl rand -base64 32)
+priv_key=$(openssl genrsa 2048 2>/dev/null) # FIXME: change key size
 
 serverd_stop() {
     info "Shutting down server..."
@@ -71,8 +72,8 @@ serverd_connect() {
     openssl base64 -k $key -in $building_script.gz -out $building_script.gz.enc
     local size=$(wc -c $building_script.gz.enc | awk '{print $1}')
     echo "connect $key $hostname$workspace/$name.git
-    $MSG_START_TRANSMISSION $size" > /dev/tcp/$worker_address/$worker_port
-    ncat $worker_address $worker_port < $building_script.gz.enc >&4
+    $MSG_START_TRANSMISSION $size" >/dev/tcp/$worker_address/$worker_port
+    ncat $worker_address $worker_port <$building_script.gz.enc >&4
     if [ ! $? ]; then
         error "Cannot send data to worker!"
     fi
@@ -96,7 +97,17 @@ serverd_add_job() {
 
 main() {
     while true; do
-        read msg <&4
+        msg=""
+        read line <&4
+        if [ "$line" != "$MSG_START_TRANSMISSION" ]; then
+            echo "Fuck you!" >&3
+            continue
+        fi
+        while read -t $TIMEOUT line <&4; do
+            [[ "$line" == "$MSG_STOP_TRANSMISSION" ]] && break
+            msg+="$line"
+        done
+        msg=$(echo "$msg" | base64 -d | openssl rsautl -decrypt -inkey <(echo "$priv_key"))
         eval "serverd_$msg"
         if [ ! $? ]; then
             echo "$MSG_BAD_MESSAGE" >&3
@@ -114,6 +125,9 @@ if [ -e .lock ]; then
     die "Server exists!"
 fi
 
+echo "$priv_key" | openssl rsa -pubout >.pub
+chmod 600 .pub
+
 run_command "echo $port > .lock"
 run_command "mkfifo $tcp_in_pipe"
 run_command "mkfifo $tcp_out_pipe"
@@ -125,14 +139,18 @@ ncat_pid=$!
 run_command git init --bare $name.git
 
 info "Creating post-receive hook"
-cat > ${name}.git/hooks/post-receive << EOF
+cat > ${name}.git/hooks/post-receive <<EOF
 #!/bin/bash
 read oldrev newrev ref
 echo "Adding a build \$newrev to the queue..."
-echo "build \${ref#refs/heads/}" > /dev/tcp/localhost/$port
+exec {serverd}<>/dev/tcp/localhost/$port
+echo "$MSG_START_TRANSMISSION" >&\$serverd
+echo "build \${ref#refs/heads/}" | openssl rsautl -encrypt -pubin -inkey $workspace/.pub | base64 >&\$serverd
+echo "$MSG_STOP_TRANSMISSION" >&\$serverd
 if [ \$? ]; then
     echo "OK"
 fi
+exec {serverd}>&-
 EOF
 run_command chmod +x ${name}.git/hooks/post-receive
 
