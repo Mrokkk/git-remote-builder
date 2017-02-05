@@ -30,6 +30,9 @@ while true; do
             config_file=$2
             shift 2
             ;;
+        -j|--job-name)
+            job_name=$2
+            shift 2
         *)
             if [ "$1" == "" ]; then
                 break
@@ -90,6 +93,21 @@ server_connect() {
         info "Added worker $address:$port for $name"
     else
         die "Cannot connect to worker!"
+    fi
+    exec {serverd}>&-
+}
+
+server_add_job() {
+    local server_por$(get_server_port $name .)
+    exec {serverd}<>/dev/tcp/localhost/$server_port
+    echo "$MSG_START_TRANSMISSION" >&$serverd
+    echo "$CMD_ADD_JOB $job_name $building_script" | openssl rsautl -encrypt -pubin -inkey $name-workspace/.pub | base64 >&$serverd
+    sleep 0.5
+    read -t $TIMEOUT response <&$serverd
+    if [ "$response" == "$MSG_SUCCESS" ]; then
+        info "Added job $job_name for $name"
+    else
+        die "Cannot add job!"
     fi
     exec {serverd}>&-
 }

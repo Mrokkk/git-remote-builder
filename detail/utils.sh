@@ -10,6 +10,7 @@ CMD_BUILD="build"
 CMD_CONNECT="connect"
 CMD_TEST="test"
 CMD_STOP="stop"
+CMD_ADD_JOB="addjob"
 
 info() {
     echo -e "INFO: $@"

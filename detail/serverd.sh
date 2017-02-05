@@ -90,9 +90,10 @@ serverd_connect() {
 }
 
 serverd_add_job() {
-    # TODO
     local job_name=$1
     local job_script=$2
+    jobs+=("$job_name $(readlink -f $job_script)")
+    echo "$MSG_SUCCESS" >&3
 }
 
 main() {
@@ -128,7 +129,7 @@ fi
 echo "$priv_key" | openssl rsa -pubout >.pub
 chmod 600 .pub
 
-run_command "echo $port > .lock"
+run_command "echo $port >.lock"
 run_command "mkfifo $tcp_in_pipe"
 run_command "mkfifo $tcp_out_pipe"
 run_command "exec 3<>$tcp_in_pipe"
