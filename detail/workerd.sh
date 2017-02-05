@@ -129,7 +129,8 @@ fi
 set -e
 
 run_command "touch log"
-run_command "echo $port > .lock"
+run_command "echo $port >.lock"
+run_command "echo $$ >.pid"
 run_command mkfifo $tcp_in_pipe
 run_command mkfifo $tcp_out_pipe
 run_command "exec 3<>$tcp_in_pipe"

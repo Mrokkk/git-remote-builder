@@ -32,6 +32,12 @@ get_server_port() {
     fi
 }
 
+get_worker_pid() {
+    local name=$1
+    local pid_file=$(readlink -f $2)/$name-workspace/.pid
+    [[ -e $pid_file ]]; cat $pid_file
+}
+
 run_command() {
     local com=$@
     local log=$(mktemp)
