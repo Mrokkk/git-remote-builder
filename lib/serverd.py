@@ -10,23 +10,23 @@ from daemons.prefab import run
 class Handler(socketserver.BaseRequestHandler):
 
     def handle(self):
-        LOG = logging.getLogger('Handler.handle')
+        logger = logging.getLogger(__name__)
         while True:
             try:
                 self.data = self.request.recv(1024).strip()
                 if not self.data:
                     return
-                LOG.debug('{} wrote: {}'.format(self.client_address[0], self.data.decode('ascii')))
+                logger.debug('{} wrote: {}'.format(self.client_address[0], self.data.decode('ascii')))
                 self.request.sendto(b'OK\n', self.client_address)
             except:
                 return
 
 
-class Serverd(run.RunDaemon):
+class ServerDaemon(run.RunDaemon):
 
     def run(self):
-        host, port = 'localhost', 8090
-        LOG = logging.getLogger('Serverd.run')
+        host, port = 'localhost', 0
+        logger = logging.getLogger(__name__)
         with socketserver.TCPServer((host, port), Handler) as server:
-            LOG.info('Serving at port {}'.format(port))
+            logger.info('Serving at {}'.format(server.server_address))
             server.serve_forever()

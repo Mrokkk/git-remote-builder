@@ -11,7 +11,7 @@ def main(argv):
     logfile = os.path.join(os.getcwd(), 'log')
     pidfile = os.path.join(os.getcwd(), 'pid')
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
-    server = serverd.Serverd(pidfile=pidfile)
+    server = serverd.ServerDaemon(pidfile=pidfile)
     if command == 'start':
         server.start()
     elif command == 'stop':
