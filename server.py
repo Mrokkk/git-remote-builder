@@ -4,14 +4,14 @@ import logging
 import os
 import sys
 import time
-from lib import serverd
+from lib.serverd import ServerDaemon
 
 def main(argv):
     command = argv[0]
     logfile = os.path.join(os.getcwd(), 'log')
     pidfile = os.path.join(os.getcwd(), 'pid')
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
-    server = serverd.ServerDaemon(pidfile=pidfile)
+    server = ServerDaemon(pidfile=pidfile)
     if command == 'start':
         server.start()
     elif command == 'stop':
