@@ -4,20 +4,21 @@ import logging
 import os
 import sys
 import time
-from lib.serverd import ServerDaemon
+from builderlib.master import RequestHandler
+from builderlib.daemon import ServerDaemon
 
 def main(argv):
     command = argv[0]
     logfile = os.path.join(os.getcwd(), 'log')
     pidfile = os.path.join(os.getcwd(), 'pid')
     logging.basicConfig(filename=logfile, level=logging.DEBUG)
-    server = ServerDaemon(pidfile=pidfile)
+    master = ServerDaemon(RequestHandler, pidfile=pidfile)
     if command == 'start':
-        server.start()
+        master.start()
     elif command == 'stop':
-        server.stop()
+        master.stop()
     elif command == 'restart':
-        server.restart()
+        master.restart()
 
 
 if __name__ == '__main__':

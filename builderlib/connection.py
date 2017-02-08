@@ -19,4 +19,4 @@ class WorkerConnection:
         self.sock.close()
 
     def send(self, data):
-        self.sock.sendall(data + b'\n')
+        self.sock.sendall(b64encode(data) + b'\n')
