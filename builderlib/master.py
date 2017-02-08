@@ -1,32 +1,35 @@
 #!/bin/env python3
 
-import sys
-import os
-import time
-import socketserver
+import socket
 import logging
-from builderlib.connection import WorkerConnection
+from daemons.prefab import run
 
-class RequestHandler(socketserver.BaseRequestHandler):
+class Master(run.RunDaemon):
 
-    __logger = None
+    logger = None
+    socket = None
 
     def __init__(self, *args, **kwargs):
-        self.__logger = logging.getLogger(__name__)
-        self.__logger.debug("Constructor")
         super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug('Constructor')
 
-    def handle(self):
-        try:
-            con = WorkerConnection(('localhost', 8080))
-        except:
-            self.__logger.error('Cannot conect to worker')
-            return
-        self.__logger.info('Connected to worker')
+    def run(self):
+        address = 'localhost', 0
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind(address)
+        address, self.port = self.socket.getsockname()
+        self.logger.info('Started server at port {}'.format(self.port))
+        self.socket.listen(1)
         while True:
-            self.data = self.request.recv(1024).strip()
-            if not self.data:
-                return
-            self.__logger.debug('{} wrote: {}'.format(self.client_address[0], self.data.decode('ascii')))
-            con.send(self.data)
-            self.request.sendto(b'OK\n', self.client_address)
+            connection, client_address = self.socket.accept()
+            self.logger.info('{} opened connection'.format(client_address[0]))
+            try:
+                while True:
+                    data = connection.recv(1024).strip()
+                    if not data:
+                        self.logger.info('{} closed connection'.format(client_address[0]))
+                        break
+                    self.logger.info('{} sent "{}"'.format(client_address[0], data.decode('ascii')))
+            finally:
+                connection.close()
