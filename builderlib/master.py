@@ -4,31 +4,45 @@ import sys
 import os
 import socket
 import logging
-from daemons.prefab import run
+import ssl
+from base64 import b64decode
 
-class Master(run.RunDaemon):
+class Master:
 
     logger = None
+    port = None
     socket = None
     shell = None
+    certfile = None
+    keyfile = None
+
+    def __init__(self, certfile=None, keyfile=None, port=None):
+        logfile = os.path.join(os.getcwd(), 'log')
+        logging.basicConfig(filename=logfile, level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug('Constructor')
+        self.shell = Shell()
+        self.port = port if port else 0
+        self.certfile = certfile
+        self.keyfile = keyfile
 
     def run(self):
-        self.logger = logging.getLogger(__name__)
-        self.logger.debug('Running')
-        self.shell = Shell()
-        self.null_fd = open(os.devnull, 'w')
-        sys.stdin = self.null_fd
-        sys.stdout = self.null_fd
-        sys.stderr = self.null_fd
-        address = 'localhost', 0
+        address = 'localhost', self.port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.certfile and self.keyfile:
+            self.logger.info('Using SSL')
+            self.socket = ssl.wrap_socket(self.socket,
+                                          server_side=True,
+                                          certfile=self.certfile,
+                                          keyfile=self.keyfile)
         self.socket.bind(address)
         address, self.port = self.socket.getsockname()
         self.logger.info('Started server at port {}'.format(self.port))
+        print('Started server at port {}'.format(self.port))
         self.socket.listen(1)
-        self.main()
+        self.serve_forever()
 
-    def main(self):
+    def serve_forever(self):
         while True:
             connection, client_address = self.socket.accept()
             self.logger.info('{} opened connection'.format(client_address[0]))
@@ -45,7 +59,7 @@ class Master(run.RunDaemon):
 
     def read_from_connection(self, connection):
         try:
-            return connection.recv(1024).strip().decode('ascii')
+            return b64decode(connection.recv(1024)).decode('ascii').strip()
         except:
             return None
 
@@ -59,5 +73,9 @@ class Shell:
         arguments = data.split(' ')
         command = arguments[0]
         arguments = arguments[1:]
-        self.logger.info('Command: {} Args: {}'.format(command, arguments))
+        self.logger.info('command={}; args={}'.format(command, arguments))
         pass
+
+def main(certfile=None, keyfile=None, port=None):
+    Master(certfile=certfile, keyfile=keyfile, port=port).run()
+
