@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+message Command {
+
+    message Build {
+        string commit_hash = 1;
+        bytes script = 2;
+    }
+
+    message ConnectWorker {
+        string worker_host = 1;
+        int32 worker_port = 2;
+    }
+
+    oneof command {
+        Build build = 1;
+        ConnectWorker connect_worker = 2;
+    }
+
+}
+
+message Result {
+    string error = 1;
+    int32 error_code = 2;
+}
+

@@ -5,7 +5,7 @@ import os
 import socket
 import logging
 import ssl
-from base64 import b64decode
+import builderlib.messages_pb2
 
 class Master:
 
@@ -51,17 +51,18 @@ class Master:
                     data = self.read_from_connection(connection)
                     if not data:
                         break
-                    self.logger.debug('{} sent "{}"'.format(client_address[0], data))
-                    self.shell.dispatch(data)
+                    self.logger.info('{} sent:\n{}'.format(client_address[0], data))
             finally:
                 self.logger.info('{} closed connection'.format(client_address[0]))
                 connection.close()
 
     def read_from_connection(self, connection):
-        try:
-            return b64decode(connection.recv(1024)).decode('ascii').strip()
-        except:
+        data = connection.recv(1024)
+        if not data:
             return None
+        msg = builderlib.messages_pb2.Command()
+        msg.ParseFromString(data)
+        return msg
 
 
 class Shell:

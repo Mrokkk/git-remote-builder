@@ -5,7 +5,7 @@ import ssl
 import os
 import sys
 import getopt
-from base64 import b64encode
+import builderlib.messages_pb2
 
 def main(argv):
     port = None
@@ -36,7 +36,11 @@ def main(argv):
         sys.exit(1)
     try:
         for line in sys.stdin:
-            sock.sendall(b64encode(bytes(line, 'ascii')))
+            msg = builderlib.messages_pb2.Command()
+            f = open('examples/build.sh', 'r')
+            msg.build.commit_hash = 'b85fe'
+            msg.build.script = bytes(f.read(), 'ascii')
+            sock.sendall(msg.SerializeToString())
     except KeyboardInterrupt:
         print('Closing connection')
         sock.close()
