@@ -7,7 +7,7 @@ import daemon
 import pid
 import getopt
 import signal
-import builderlib.master
+from builderlib import master
 
 def main(argv):
     command = argv[0]
@@ -40,7 +40,7 @@ def start_server(argv):
                               pidfile=pidfile,
                               stdout=sys.stdout,
                               stderr=sys.stderr):
-        builderlib.master.main(certfile=cert, keyfile=key, port=port)
+        master.main(certfile=cert, keyfile=key, port=port)
 
 
 def stop_server(argv):

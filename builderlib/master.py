@@ -5,7 +5,7 @@ import os
 import socket
 import logging
 import ssl
-import builderlib.messages_pb2
+from . import messages_pb2
 
 class Master:
 
@@ -60,7 +60,7 @@ class Master:
         data = connection.recv(1024)
         if not data:
             return None
-        msg = builderlib.messages_pb2.Command()
+        msg = messages_pb2.Command()
         msg.ParseFromString(data)
         return msg
 
