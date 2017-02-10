@@ -20,8 +20,6 @@ class Master:
         logfile = os.path.join(os.getcwd(), 'log')
         logging.basicConfig(filename=logfile, level=logging.DEBUG)
         self.logger = logging.getLogger(__name__)
-        self.logger.debug('Constructor')
-        self.shell = Shell()
         self.port = port if port else 0
         self.certfile = certfile
         self.keyfile = keyfile
@@ -64,18 +62,6 @@ class Master:
         msg.ParseFromString(data)
         return msg
 
-
-class Shell:
-
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-    def dispatch(self, data):
-        arguments = data.split(' ')
-        command = arguments[0]
-        arguments = arguments[1:]
-        self.logger.info('command={}; args={}'.format(command, arguments))
-        pass
 
 def main(certfile=None, keyfile=None, port=None):
     Master(certfile=certfile, keyfile=keyfile, port=port).run()
