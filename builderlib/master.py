@@ -6,6 +6,7 @@ import socket
 import ssl
 import logging
 import asyncio
+import getpass
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
 
@@ -33,7 +34,9 @@ class MasterProtocol(asyncio.Protocol):
         self.master.msg = self.master.msg + 1
         msg = messages_pb2.Command()
         msg.ParseFromString(data)
-        self.logger.info('{} sent {}: {}'.format(self.peername, self.master.msg, MessageToString(msg, as_one_line=True)))
+        self.logger.info('{} sent {}: {}'.format(self.peername,
+                                                 self.master.msg,
+                                                 MessageToString(msg, as_one_line=True)))
         response = messages_pb2.Result()
         response.code = messages_pb2.Result.OK
         self.transport.write(response.SerializeToString())
@@ -42,19 +45,17 @@ class MasterProtocol(asyncio.Protocol):
 class Master:
 
     msg = 0
+    password = None
 
-    def __init__(self):
+    def __init__(self, password):
+        self.password = password
         pass
 
 
-
-def main(certfile=None, keyfile=None, port=None):
-    master = Master()
-    ssl_context = None
-    loop = asyncio.get_event_loop()
+def configure_logger(filename):
     format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
     logging.basicConfig(format=format_string,
-                        filename='log',
+                        filename=filename,
                         level=logging.DEBUG)
     formatter = logging.Formatter(format_string, datefmt="%Y.%m.%d:%H.%M.%S")
     console = logging.StreamHandler()
@@ -62,6 +63,21 @@ def main(certfile=None, keyfile=None, port=None):
     console.setLevel(logging.INFO)
     logger = logging.getLogger('')
     logger.addHandler(console)
+    return logger
+
+
+def main(certfile=None, keyfile=None, port=None, require_pass=False):
+    password = None
+    if require_pass:
+        password = getpass.getpass(prompt='Set password: ')
+        if password != getpass.getpass(prompt='Vaildate password: '):
+            print('Passwords don\'t match!')
+            sys.exit(1)
+    master = Master(password)
+    password = None
+    ssl_context = None
+    logger = configure_logger('log')
+    loop = asyncio.get_event_loop()
     if keyfile and certfile:
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile, keyfile=keyfile)
@@ -74,6 +90,7 @@ def main(certfile=None, keyfile=None, port=None):
     try:
         loop.run_forever()
     except KeyboardInterrupt:
+        print('\nInterrupted')
         pass
     finally:
         server.close()
