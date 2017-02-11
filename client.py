@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 from builderlib import messages_pb2
+from google.protobuf.text_format import MessageToString
 
 def main():
     parser = argparse.ArgumentParser()
@@ -35,7 +36,7 @@ def main():
                 print('No response from server')
             response = messages_pb2.Result()
             response.ParseFromString(data)
-            print(response)
+            print('Server sent: {}'.format(MessageToString(response, as_one_line=True)))
     except KeyboardInterrupt:
         print('Closing connection')
         sock.close()
