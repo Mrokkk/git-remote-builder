@@ -3,26 +3,38 @@
 import sys
 import os
 import socket
-import logging
 import ssl
+import logging
 from . import messages_pb2
+from google.protobuf.text_format import *
+import asyncio
 
 class Master:
 
-    logger = None
     port = None
     socket = None
     shell = None
     certfile = None
     keyfile = None
+    logger = None
 
     def __init__(self, certfile=None, keyfile=None, port=None):
-        logfile = os.path.join(os.getcwd(), 'log')
-        logging.basicConfig(filename=logfile, level=logging.DEBUG)
-        self.logger = logging.getLogger(__name__)
         self.port = port if port else 0
         self.certfile = certfile
         self.keyfile = keyfile
+        self.configure_log()
+
+    def configure_log(self):
+        format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        logging.basicConfig(format=format_string,
+                            filename='log',
+                            level=logging.DEBUG)
+        formatter = logging.Formatter(format_string)
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        console.setLevel(logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(console)
 
     def run(self):
         address = 'localhost', self.port
@@ -36,7 +48,6 @@ class Master:
         self.socket.bind(address)
         address, self.port = self.socket.getsockname()
         self.logger.info('Started server at port {}'.format(self.port))
-        print('Started server at port {}'.format(self.port))
         self.socket.listen(1)
         self.serve_forever()
 
@@ -49,12 +60,12 @@ class Master:
                     data = self.read_from_connection(connection)
                     if not data:
                         break
-                    self.logger.info('{} sent:\n{}'.format(client_address[0], data))
+                    self.logger.info('{} sent: {}'.format(client_address[0], MessageToString(data, indent=1, as_one_line=True)))
                     response = messages_pb2.Result()
                     response.code = messages_pb2.Result.OK
                     connection.sendall(response.SerializeToString())
             finally:
-                self.logger.info('{} closed connection'.format(client_address[0]))
+                self.logger.warning('{} closed connection'.format(client_address[0]))
                 connection.close()
 
     def read_from_connection(self, connection):

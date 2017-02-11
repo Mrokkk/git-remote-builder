@@ -4,28 +4,22 @@ import socket
 import ssl
 import os
 import sys
-import getopt
+import argparse
 from builderlib import messages_pb2
 
-def main(argv):
-    port = None
-    cert = None
-    key = None
-    try:
-        opts, args = getopt.getopt(argv, "hp:c:k:", ["help", "port=", "cert=", "key="])
-    except getopt.GetoptError:
-        sys.exit(1)
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            sys.exit(0)
-        elif opt in ('-p', '--port'):
-            port = int(arg)
-        elif opt in ('-c', '--cert'):
-            cert = os.path.abspath(arg)
-        elif opt in ('-k', '--key'):
-            key = os.path.abspath(arg)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
+    parser.add_argument('-c', '--cert', help='use given certificate file (SSL)')
+    parser.add_argument('-k', '--key', help='use given key file (SSL)')
+    args = parser.parse_args()
+    cert, key = None, None
+    if args.cert:
+        cert = os.path.abspath(args.cert)
+    if args.key:
+        key = os.path.abspath(args.key)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = ('localhost', int(port))
+    server_address = ('localhost', args.port)
     if cert and key:
         sock = ssl.wrap_socket(sock, certfile=cert, keyfile=key)
     try:
@@ -53,6 +47,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    pwd = os.path.dirname(sys.argv[0])
-    main(sys.argv[1:])
+    main()
 
