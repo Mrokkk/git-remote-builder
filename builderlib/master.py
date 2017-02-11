@@ -83,5 +83,8 @@ class Master:
 
 
 def main(certfile=None, keyfile=None, port=None):
-    Master(certfile=certfile, keyfile=keyfile, port=port).run()
+    try:
+        Master(certfile=certfile, keyfile=keyfile, port=port).run()
+    except KeyboardInterrupt:
+        sys.exit(0)
 
