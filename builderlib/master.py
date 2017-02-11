@@ -6,7 +6,7 @@ import socket
 import ssl
 import logging
 from . import messages_pb2
-from google.protobuf.text_format import *
+from google.protobuf.text_format import MessageToString
 import asyncio
 
 class Master:
@@ -26,11 +26,11 @@ class Master:
         self.logger.debug('Constructor')
 
     def configure_log(self):
-        format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
         logging.basicConfig(format=format_string,
                             filename='log',
                             level=logging.DEBUG)
-        formatter = logging.Formatter(format_string)
+        formatter = logging.Formatter(format_string, datefmt="%Y.%m.%d:%H.%M.%S")
         console = logging.StreamHandler()
         console.setFormatter(formatter)
         console.setLevel(logging.INFO)
