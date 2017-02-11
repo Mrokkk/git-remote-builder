@@ -13,15 +13,10 @@ def main():
     parser.add_argument('-c', '--cert', help='use given certificate file (SSL)')
     parser.add_argument('-k', '--key', help='use given key file (SSL)')
     args = parser.parse_args()
-    cert, key = None, None
-    if args.cert:
-        cert = os.path.abspath(args.cert)
-    if args.key:
-        key = os.path.abspath(args.key)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = ('localhost', args.port)
-    if cert and key:
-        sock = ssl.wrap_socket(sock, certfile=cert, keyfile=key)
+    if args.cert and args.key:
+        sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.cert), keyfile=os.path.abspath(args.key))
     try:
         sock.connect(server_address)
         print('Connected')
