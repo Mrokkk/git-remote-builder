@@ -5,7 +5,7 @@ import sys
 import argparse
 from builderlib import master
 
-def main(argv):
+def main():
     port = None
     cert = None
     key = None
@@ -23,6 +23,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    pwd = os.path.dirname(sys.argv[0])
-    main(sys.argv[1:])
+    main()
 
