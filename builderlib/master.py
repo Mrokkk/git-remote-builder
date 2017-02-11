@@ -5,86 +5,77 @@ import os
 import socket
 import ssl
 import logging
+import asyncio
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
-import asyncio
 
-class Master:
+class MasterProtocol(asyncio.Protocol):
 
-    port = None
-    socket = None
     shell = None
     certfile = None
     keyfile = None
     logger = None
 
-    def __init__(self, certfile=None, keyfile=None, port=None):
-        self.port = port if port else 0
-        self.certfile = certfile
-        self.keyfile = keyfile
-        self.configure_log()
-        self.logger.debug('Constructor')
+    def __init__(self, master, logger):
+        self.master = master
+        self.logger = logger.getChild(self.__class__.__name__)
 
-    def configure_log(self):
-        format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
-        logging.basicConfig(format=format_string,
-                            filename='log',
-                            level=logging.DEBUG)
-        formatter = logging.Formatter(format_string, datefmt="%Y.%m.%d:%H.%M.%S")
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        console.setLevel(logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        self.logger.addHandler(console)
+    def connection_made(self, transport):
+        self.peername = transport.get_extra_info('peername')
+        self.logger.info('{} opened connection'.format(self.peername))
+        self.transport = transport
 
-    def run(self):
-        address = 'localhost', self.port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if self.certfile and self.keyfile:
-            self.logger.info('Using SSL')
-            self.socket = ssl.wrap_socket(self.socket,
-                                          server_side=True,
-                                          certfile=self.certfile,
-                                          keyfile=self.keyfile)
-        try:
-            self.socket.bind(address)
-            address, self.port = self.socket.getsockname()
-            self.logger.info('Started server at port {}'.format(self.port))
-            self.socket.listen(1)
-        except socket.error as err:
-            self.logger.critical('Cannot create server: {}'.format(err))
-        self.serve_forever()
+    def connection_lost(self, exc):
+        self.logger.info('{} closed connection'.format(self.peername))
+        self.transport.close()
 
-    def serve_forever(self):
-        while True:
-            connection, client_address = self.socket.accept()
-            self.logger.info('{} opened connection'.format(client_address[0]))
-            try:
-                while True:
-                    data = self.read_from_connection(connection)
-                    if not data:
-                        break
-                    self.logger.info('{} sent: {}'.format(client_address[0],
-                                                          MessageToString(data, indent=1, as_one_line=True)))
-                    response = messages_pb2.Result()
-                    response.code = messages_pb2.Result.OK
-                    connection.sendall(response.SerializeToString())
-            finally:
-                self.logger.warning('{} closed connection'.format(client_address[0]))
-                connection.close()
-
-    def read_from_connection(self, connection):
-        data = connection.recv(1024)
-        if not data:
-            return None
+    def data_received(self, data):
+        self.master.msg = self.master.msg + 1
         msg = messages_pb2.Command()
         msg.ParseFromString(data)
-        return msg
+        self.logger.info('{} sent {}: {}'.format(self.peername, self.master.msg, MessageToString(msg, as_one_line=True)))
+        response = messages_pb2.Result()
+        response.code = messages_pb2.Result.OK
+        self.transport.write(response.SerializeToString())
+
+
+class Master:
+
+    msg = 0
+
+    def __init__(self):
+        pass
+
 
 
 def main(certfile=None, keyfile=None, port=None):
+    master = Master()
+    ssl_context = None
+    loop = asyncio.get_event_loop()
+    format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
+    logging.basicConfig(format=format_string,
+                        filename='log',
+                        level=logging.DEBUG)
+    formatter = logging.Formatter(format_string, datefmt="%Y.%m.%d:%H.%M.%S")
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
+    logger = logging.getLogger('')
+    logger.addHandler(console)
+    if keyfile and certfile:
+        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+        ssl_context.load_cert_chain(certfile, keyfile=keyfile)
+    coroutine = loop.create_server(lambda: MasterProtocol(master, logger),
+                                                          host='127.0.0.1',
+                                                          port=port,
+                                                          ssl=ssl_context)
+    server = loop.run_until_complete(coroutine)
+    logger.info('Serving on {}'.format(server.sockets[0].getsockname()))
     try:
-        Master(certfile=certfile, keyfile=keyfile, port=port).run()
+        loop.run_forever()
     except KeyboardInterrupt:
-        sys.exit(0)
+        pass
+    finally:
+        server.close()
+        loop.close()
 
