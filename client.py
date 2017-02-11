@@ -19,10 +19,10 @@ def main():
         sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.cert), keyfile=os.path.abspath(args.key))
     try:
         sock.connect(server_address)
-        print('Connected')
-    except:
-        print('Cannot connect to {}'.format(server_address))
+    except socket.error as err:
+        print('Connection error: {}'.format(err))
         sys.exit(1)
+    print('Connected')
     try:
         for line in sys.stdin:
             msg = messages_pb2.Command()

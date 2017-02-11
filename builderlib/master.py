@@ -23,6 +23,7 @@ class Master:
         self.certfile = certfile
         self.keyfile = keyfile
         self.configure_log()
+        self.logger.debug('Constructor')
 
     def configure_log(self):
         format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -45,10 +46,13 @@ class Master:
                                           server_side=True,
                                           certfile=self.certfile,
                                           keyfile=self.keyfile)
-        self.socket.bind(address)
-        address, self.port = self.socket.getsockname()
-        self.logger.info('Started server at port {}'.format(self.port))
-        self.socket.listen(1)
+        try:
+            self.socket.bind(address)
+            address, self.port = self.socket.getsockname()
+            self.logger.info('Started server at port {}'.format(self.port))
+            self.socket.listen(1)
+        except socket.error as err:
+            self.logger.critical('Cannot create server: {}'.format(err))
         self.serve_forever()
 
     def serve_forever(self):
@@ -60,7 +64,8 @@ class Master:
                     data = self.read_from_connection(connection)
                     if not data:
                         break
-                    self.logger.info('{} sent: {}'.format(client_address[0], MessageToString(data, indent=1, as_one_line=True)))
+                    self.logger.info('{} sent: {}'.format(client_address[0],
+                                                          MessageToString(data, indent=1, as_one_line=True)))
                     response = messages_pb2.Result()
                     response.code = messages_pb2.Result.OK
                     connection.sendall(response.SerializeToString())
