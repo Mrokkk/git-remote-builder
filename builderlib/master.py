@@ -50,6 +50,9 @@ class Master:
                     if not data:
                         break
                     self.logger.info('{} sent:\n{}'.format(client_address[0], data))
+                    response = messages_pb2.Result()
+                    response.code = messages_pb2.Result.OK
+                    connection.sendall(response.SerializeToString())
             finally:
                 self.logger.info('{} closed connection'.format(client_address[0]))
                 connection.close()

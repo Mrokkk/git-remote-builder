@@ -41,6 +41,12 @@ def main(argv):
             msg.build.commit_hash = 'b85fe'
             msg.build.script = bytes(f.read(), 'ascii')
             sock.sendall(msg.SerializeToString())
+            data = sock.recv(256)
+            if not data:
+                print('No response from server')
+            response = messages_pb2.Result()
+            response.ParseFromString(data)
+            print(response)
     except KeyboardInterrupt:
         print('Closing connection')
         sock.close()

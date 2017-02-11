@@ -20,7 +20,14 @@ message Command {
 }
 
 message Result {
-    string error = 1;
-    int32 error_code = 2;
+
+    enum Code {
+        NONE = 0;
+        OK = 1;
+        FAIL = 2;
+    }
+
+    Code code = 1;
+    string error = 2;
 }
 
