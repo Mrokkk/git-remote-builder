@@ -6,9 +6,6 @@ import argparse
 from builderlib import master
 
 def main():
-    port = None
-    cert = None
-    key = None
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', help='use given port', type=int)
     parser.add_argument('-c', '--cert', help='use given certificate file (SSL)')
@@ -19,7 +16,7 @@ def main():
         cert = os.path.abspath(args.cert)
     if args.key:
         key = os.path.abspath(args.key)
-    master.main(certfile=cert, keyfile=key, port=port)
+    master.main(certfile=cert, keyfile=key, port=args.port)
 
 
 if __name__ == '__main__':
