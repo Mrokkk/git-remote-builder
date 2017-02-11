@@ -54,14 +54,17 @@ class Master:
         message.ParseFromString(data)
         response = messages_pb2.Result()
         if not message.token:
-            if message.auth:
+            if message.WhichOneof('command') == 'auth':
                 self.logger.info('Got authentication request')
                 if str(message.auth.password).strip() == str(self.password).strip():
                     self.client_token = os.urandom(64)
                     response.token = b64encode(self.client_token)
+                    self.logger.info('Accepted request. Sending token')
                 else:
+                    self.logger.warning('Denied attempt to authenticate with bad password')
                     response.code = messages_pb2.Result.FAIL
             else:
+                self.logger.warning('Message without token')
                 response.code = messages_pb2.Result.FAIL
         else:
             self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
