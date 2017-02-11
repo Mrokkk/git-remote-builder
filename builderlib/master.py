@@ -64,8 +64,8 @@ class Master:
                     self.logger.warning('Denied attempt to authenticate with bad password')
                     response.code = messages_pb2.Result.FAIL
             else:
-                self.logger.warning('Message without token')
-                response.code = messages_pb2.Result.FAIL
+                self.logger.warning('Message without token. Closing connection')
+                return None
         else:
             self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
             response.code = messages_pb2.Result.OK
