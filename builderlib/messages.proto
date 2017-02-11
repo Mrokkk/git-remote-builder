@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+
 message Command {
 
     message Build {
@@ -12,9 +13,16 @@ message Command {
         int32 worker_port = 2;
     }
 
+    message Authenticate {
+        string password = 1;
+    }
+
+    string token = 1;
+
     oneof command {
-        Build build = 1;
-        ConnectWorker connect_worker = 2;
+        Build build = 2;
+        ConnectWorker connect_worker = 3;
+        Authenticate auth = 4;
     }
 
 }
@@ -29,5 +37,6 @@ message Result {
 
     Code code = 1;
     string error = 2;
+    string token = 3;
 }
 

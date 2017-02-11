@@ -7,14 +7,12 @@ import ssl
 import logging
 import asyncio
 import getpass
+from base64 import b64encode
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
 
 class MasterProtocol(asyncio.Protocol):
 
-    shell = None
-    certfile = None
-    keyfile = None
     logger = None
 
     def __init__(self, master, logger):
@@ -31,25 +29,44 @@ class MasterProtocol(asyncio.Protocol):
         self.transport.close()
 
     def data_received(self, data):
-        self.master.msg = self.master.msg + 1
-        msg = messages_pb2.Command()
-        msg.ParseFromString(data)
-        self.logger.info('{} sent {}: {}'.format(self.peername,
-                                                 self.master.msg,
-                                                 MessageToString(msg, as_one_line=True)))
-        response = messages_pb2.Result()
-        response.code = messages_pb2.Result.OK
-        self.transport.write(response.SerializeToString())
+        response = self.master.parse_message(data)
+        if not response:
+            self.transport.close()
+        self.transport.write(response)
 
 
 class Master:
 
     msg = 0
     password = None
+    logger = None
+    slaves = []
+    client_token = None
 
-    def __init__(self, password):
+    def __init__(self, password, logger):
         self.password = password
+        self.logger = logger.getChild(self.__class__.__name__)
         pass
+
+    def parse_message(self, data):
+        self.msg = self.msg + 1
+        message = messages_pb2.Command()
+        message.ParseFromString(data)
+        response = messages_pb2.Result()
+        if not message.token:
+            if message.auth:
+                self.logger.info('Got authentication request')
+                if str(message.auth.password).strip() == str(self.password).strip():
+                    self.client_token = os.urandom(64)
+                    response.token = b64encode(self.client_token)
+                else:
+                    response.code = messages_pb2.Result.FAIL
+            else:
+                response.code = messages_pb2.Result.FAIL
+        else:
+            self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
+            response.code = messages_pb2.Result.OK
+        return response.SerializeToString()
 
 
 def configure_logger(filename):
@@ -66,17 +83,15 @@ def configure_logger(filename):
     return logger
 
 
-def main(certfile=None, keyfile=None, port=None, require_pass=False):
-    password = None
-    if require_pass:
-        password = getpass.getpass(prompt='Set password: ')
-        if password != getpass.getpass(prompt='Vaildate password: '):
-            print('Passwords don\'t match!')
-            sys.exit(1)
-    master = Master(password)
-    password = None
-    ssl_context = None
+def main(certfile=None, keyfile=None, port=None):
+    password, ssl_context = '', None
+    password = getpass.getpass(prompt='Set password: ')
+    if password != getpass.getpass(prompt='Vaildate password: '):
+        print('Passwords don\'t match!')
+        sys.exit(1)
     logger = configure_logger('log')
+    master = Master(password, logger)
+    password = None
     loop = asyncio.get_event_loop()
     if keyfile and certfile:
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
@@ -86,7 +101,7 @@ def main(certfile=None, keyfile=None, port=None, require_pass=False):
                                                           port=port,
                                                           ssl=ssl_context)
     server = loop.run_until_complete(coroutine)
-    logger.info('Serving on {}'.format(server.sockets[0].getsockname()))
+    logger.info('Server running on {}'.format(server.sockets[0].getsockname()))
     try:
         loop.run_forever()
     except KeyboardInterrupt:

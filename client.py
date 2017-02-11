@@ -5,6 +5,7 @@ import ssl
 import os
 import sys
 import argparse
+import getpass
 from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
 
@@ -24,12 +25,26 @@ def main():
         print('Connection error: {}'.format(err))
         sys.exit(1)
     print('Connected')
+    token = ''
+    password = getpass.getpass('Type password:')
+    token_request = messages_pb2.Command()
+    token_request.auth.password = password
+    sock.send(token_request.SerializeToString())
+    data = sock.recv(1024)
+    response = messages_pb2.Result()
+    response.ParseFromString(data)
+    if not response.token:
+        print('Bad pass!')
+        sys.exit(1)
+    token = response.token
+    print('Got token: {}'.format(token))
     try:
         for line in sys.stdin:
             msg = messages_pb2.Command()
             f = open('examples/build.sh', 'r')
             msg.build.commit_hash = 'b85fe'
             msg.build.script = bytes(f.read(), 'ascii')
+            msg.token = token
             sock.sendall(msg.SerializeToString())
             data = sock.recv(256)
             if not data:
