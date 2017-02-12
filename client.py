@@ -20,6 +20,7 @@ def main():
         sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.ssl[0]), keyfile=os.path.abspath(args.ssl[1]))
     try:
         sock.connect(server_address)
+        sock.settimeout(10)
     except socket.error as err:
         print('Connection error: {}'.format(err))
         sys.exit(1)
@@ -40,9 +41,8 @@ def main():
     try:
         for line in sys.stdin:
             msg = messages_pb2.Command()
-            f = open('examples/build.sh', 'r')
             msg.build.commit_hash = 'b85fe'
-            msg.build.script = bytes(f.read(), 'ascii')
+            msg.build.script = bytes(open('examples/build.sh', 'r').read(), 'ascii')
             msg.token = token
             sock.sendall(msg.SerializeToString())
             data = sock.recv(256)

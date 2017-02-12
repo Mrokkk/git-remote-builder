@@ -32,7 +32,8 @@ class MasterProtocol(asyncio.Protocol):
         response = self.master.parse_message(data)
         if not response:
             self.transport.close()
-        self.transport.write(response)
+        else:
+            self.transport.write(response)
 
 
 class Master:
@@ -51,7 +52,11 @@ class Master:
     def parse_message(self, data):
         self.msg = self.msg + 1
         message = messages_pb2.Command()
-        message.ParseFromString(data)
+        try:
+            message.ParseFromString(data)
+        except:
+            self.logger.warning('Bad message')
+            return None
         response = messages_pb2.Result()
         if not message.token:
             if message.WhichOneof('command') == 'auth':
