@@ -15,6 +15,7 @@ from google.protobuf.text_format import MessageToString
 class MasterProtocol(asyncio.Protocol):
 
     logger = None
+    master = None
 
     def __init__(self, master, logger):
         self.master = master
@@ -82,11 +83,14 @@ class Master:
 
 
 def configure_logger(filename):
+    date_format = '%Y.%m.%d:%H.%M.%S'
     format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
     logging.basicConfig(format=format_string,
+                        datefmt=date_format,
+                        filemode='w',
                         filename=filename,
                         level=logging.DEBUG)
-    formatter = logging.Formatter(format_string, datefmt="%Y.%m.%d:%H.%M.%S")
+    formatter = logging.Formatter(format_string, datefmt=date_format)
     console = logging.StreamHandler()
     console.setFormatter(formatter)
     console.setLevel(logging.INFO)
@@ -96,6 +100,7 @@ def configure_logger(filename):
 
 
 def main(certfile=None, keyfile=None, port=None):
+    os.umask(0o077)
     password, ssl_context = '', None
     password = getpass.getpass(prompt='Set password: ')
     if password != getpass.getpass(prompt='Vaildate password: '):
