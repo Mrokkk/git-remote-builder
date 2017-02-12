@@ -7,6 +7,7 @@ import ssl
 import logging
 import asyncio
 import getpass
+import secrets
 from base64 import b64encode
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
@@ -62,8 +63,8 @@ class Master:
             if message.WhichOneof('command') == 'auth':
                 self.logger.info('Got authentication request')
                 if str(message.auth.password).strip() == str(self.password).strip():
-                    self.client_token = os.urandom(64)
-                    response.token = b64encode(self.client_token)
+                    self.client_token = secrets.token_hex(16)
+                    response.token = self.client_token
                     self.logger.info('Accepted request. Sending token')
                 else:
                     self.logger.warning('Denied attempt to authenticate with bad password')
@@ -71,9 +72,12 @@ class Master:
             else:
                 self.logger.warning('Message without token. Closing connection')
                 return None
-        else:
+        elif message.token == self.client_token:
             self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
             response.code = messages_pb2.Result.OK
+        else:
+            self.logger.warning('Bad token in the message')
+            return None
         return response.SerializeToString()
 
 
