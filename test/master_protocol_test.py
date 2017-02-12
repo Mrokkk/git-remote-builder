@@ -42,3 +42,10 @@ def test_send_response_when_valid_data(master_protocol):
     transport_mock.write.assert_called_once()
     pass
 
+
+def test_can_close_connection(master_protocol):
+    transport_mock = Mock()
+    master_protocol.connection_made(transport_mock)
+    master_protocol.connection_lost(Mock())
+    transport_mock.close.assert_called_once()
+
