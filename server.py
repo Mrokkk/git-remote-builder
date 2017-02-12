@@ -8,14 +8,12 @@ from builderlib import master
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', help='use given port', type=int)
-    parser.add_argument('-c', '--cert', help='use given certificate file (SSL)')
-    parser.add_argument('-k', '--key', help='use given key file (SSL)')
+    parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
     cert, key = None, None
-    if args.cert:
-        cert = os.path.abspath(args.cert)
-    if args.key:
-        key = os.path.abspath(args.key)
+    if args.ssl:
+        cert = os.path.abspath(args.ssl[0])
+        key = os.path.abspath(args.ssl[1])
     master.main(certfile=cert, keyfile=key, port=args.port)
 
 

@@ -12,13 +12,12 @@ from google.protobuf.text_format import MessageToString
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
-    parser.add_argument('-c', '--cert', help='use given certificate file (SSL)')
-    parser.add_argument('-k', '--key', help='use given key file (SSL)')
+    parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = ('localhost', args.port)
-    if args.cert and args.key:
-        sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.cert), keyfile=os.path.abspath(args.key))
+    if args.ssl:
+        sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.ssl[0]), keyfile=os.path.abspath(args.ssl[1]))
     try:
         sock.connect(server_address)
     except socket.error as err:
