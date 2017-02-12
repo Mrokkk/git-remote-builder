@@ -31,6 +31,8 @@ class MasterProtocol(asyncio.Protocol):
         self.transport.close()
 
     def data_received(self, data):
+        if not data:
+            self.transport.close()
         response = self.master.parse_message(data)
         if not response:
             self.transport.close()
