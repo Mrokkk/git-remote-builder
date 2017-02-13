@@ -2,7 +2,6 @@
 
 import sys
 import os
-import socket
 import ssl
 import logging
 import asyncio
@@ -106,7 +105,7 @@ def read_password():
 def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     logger = configure_logger('log')
-    master = Master(read_password(), git.Repo.init(os.path.join(os.getcwd(), name), bare=True), logger)
+    master = Master(read_password(), git.Repo.init(os.path.join(os.getcwd(), name + '.git'), bare=True), logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
     client_server = create_server(loop, lambda: protocol.Protocol(master, logger), port, ssl_context=ssl_context)
