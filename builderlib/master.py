@@ -118,7 +118,7 @@ class Master:
         if not commit:
             return None
         self.logger.info('Got build request for commit {}'.format(commit))
-        return b'OK'
+        return b'OK\n'
         # TODO
 
 
