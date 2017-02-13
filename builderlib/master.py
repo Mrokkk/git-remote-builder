@@ -16,6 +16,8 @@ class MasterProtocol(asyncio.Protocol):
 
     logger = None
     master = None
+    transport = None
+    peername = None
 
     def __init__(self, master, logger):
         self.master = master
@@ -45,6 +47,7 @@ class PostReceiveProtocol(asyncio.Protocol):
     transport = None
     master = None
     logger = None
+    peername = None
 
     def __init__(self, master, logger):
         self.master = master
@@ -60,9 +63,11 @@ class PostReceiveProtocol(asyncio.Protocol):
         self.transport.close()
 
     def data_received(self, data):
-        if not data:
+        response = self.master.build_request(data)
+        if not response:
             self.transport.close()
-        self.logger.info('got data {}'.format(data))
+        else:
+            self.transport.write(response)
 
 
 class Master:
@@ -107,6 +112,14 @@ class Master:
             self.logger.warning('Bad token in the message')
             return None
         return response.SerializeToString()
+
+    def build_request(self, data):
+        commit = data.decode('ascii').strip()
+        if not commit:
+            return None
+        self.logger.info('Got build request for commit {}'.format(commit))
+        return b'OK'
+        # TODO
 
 
 def configure_logger(filename):
