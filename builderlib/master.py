@@ -40,6 +40,31 @@ class MasterProtocol(asyncio.Protocol):
             self.transport.write(response)
 
 
+class PostReceiveProtocol(asyncio.Protocol):
+
+    transport = None
+    master = None
+    logger = None
+
+    def __init__(self, master, logger):
+        self.master = master
+        self.logger = logger.getChild(self.__class__.__name__)
+
+    def connection_made(self, transport):
+        self.peername = transport.get_extra_info('peername')
+        self.logger.info('{} opened connection'.format(self.peername))
+        self.transport = transport
+
+    def connection_lost(self, exc):
+        self.logger.info('{} closed connection'.format(self.peername))
+        self.transport.close()
+
+    def data_received(self, data):
+        if not data:
+            self.transport.close()
+        self.logger.info('got data {}'.format(data))
+
+
 class Master:
 
     msg = 0
@@ -115,18 +140,24 @@ def main(certfile=None, keyfile=None, port=None):
     if keyfile and certfile:
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile, keyfile=keyfile)
-    coroutine = loop.create_server(lambda: MasterProtocol(master, logger),
-                                                          host='127.0.0.1',
-                                                          port=port,
-                                                          ssl=ssl_context)
-    server = loop.run_until_complete(coroutine)
-    logger.info('Server running on {}'.format(server.sockets[0].getsockname()))
+    client_coro = loop.create_server(lambda: MasterProtocol(master, logger),
+                                     host='127.0.0.1',
+                                     port=port,
+                                     ssl=ssl_context)
+    post_receive_coro = loop.create_server(lambda: PostReceiveProtocol(master, logger),
+                                           host='127.0.0.1',
+                                           port='8090')
+    post_receive_server = loop.run_until_complete(post_receive_coro)
+    client_server = loop.run_until_complete(client_coro)
+    logger.info('Server running on {}'.format(client_server.sockets[0].getsockname()))
+    logger.info('Server running on {}'.format(post_receive_server.sockets[0].getsockname()))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         print('\nInterrupted')
         pass
     finally:
-        server.close()
+        post_receive_server.close()
+        client_server.close()
         loop.close()
 
