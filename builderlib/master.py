@@ -9,10 +9,11 @@ import asyncio
 import getpass
 import secrets
 from base64 import b64encode
+import git
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
 
-class MasterProtocol(asyncio.Protocol):
+class Protocol(asyncio.Protocol):
 
     logger = None
     master = None
@@ -35,35 +36,8 @@ class MasterProtocol(asyncio.Protocol):
     def data_received(self, data):
         if not data:
             self.transport.close()
+            return
         response = self.master.parse_message(data)
-        if not response:
-            self.transport.close()
-        else:
-            self.transport.write(response)
-
-
-class PostReceiveProtocol(asyncio.Protocol):
-
-    transport = None
-    master = None
-    logger = None
-    peername = None
-
-    def __init__(self, master, logger):
-        self.master = master
-        self.logger = logger.getChild(self.__class__.__name__)
-
-    def connection_made(self, transport):
-        self.peername = transport.get_extra_info('peername')
-        self.logger.info('{} opened connection'.format(self.peername))
-        self.transport = transport
-
-    def connection_lost(self, exc):
-        self.logger.info('{} closed connection'.format(self.peername))
-        self.transport.close()
-
-    def data_received(self, data):
-        response = self.master.build_request(data)
         if not response:
             self.transport.close()
         else:
@@ -74,13 +48,16 @@ class Master:
 
     msg = 0
     password = None
+    repo = None
     logger = None
     slaves = []
     client_token = None
 
-    def __init__(self, password, logger):
+    def __init__(self, password, repo, logger):
         self.password = password
+        self.repo = repo
         self.logger = logger.getChild(self.__class__.__name__)
+        self.logger.info('Repo at: {}'.format(self.repo.working_dir))
         pass
 
     def parse_message(self, data):
@@ -102,6 +79,9 @@ class Master:
                 else:
                     self.logger.warning('Denied attempt to authenticate with bad password')
                     response.code = messages_pb2.Result.FAIL
+            elif message.build and not message.build.script:
+                self.logger.info('Received new commit {}'.format(message.build.commit_hash))
+                response.code = messages_pb2.Result.OK
             else:
                 self.logger.warning('Message without token. Closing connection')
                 return None
@@ -112,14 +92,6 @@ class Master:
             self.logger.warning('Bad token in the message')
             return None
         return response.SerializeToString()
-
-    def build_request(self, data):
-        commit = data.decode('ascii').strip()
-        if not commit:
-            return None
-        self.logger.info('Got build request for commit {}'.format(commit))
-        return b'OK\n'
-        # TODO
 
 
 def configure_logger(filename):
@@ -139,7 +111,7 @@ def configure_logger(filename):
     return logger
 
 
-def main(certfile=None, keyfile=None, port=None):
+def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     password, ssl_context = '', None
     password = getpass.getpass(prompt='Set password: ')
@@ -147,23 +119,23 @@ def main(certfile=None, keyfile=None, port=None):
         print('Passwords don\'t match!')
         sys.exit(1)
     logger = configure_logger('log')
-    master = Master(password, logger)
+    master = Master(password, git.Repo.init(os.path.join(os.getcwd(), name), bare=True), logger)
     password = None
     loop = asyncio.get_event_loop()
     if keyfile and certfile:
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile, keyfile=keyfile)
-    client_coro = loop.create_server(lambda: MasterProtocol(master, logger),
+    client_coro = loop.create_server(lambda: Protocol(master, logger),
                                      host='127.0.0.1',
                                      port=port,
                                      ssl=ssl_context)
-    post_receive_coro = loop.create_server(lambda: PostReceiveProtocol(master, logger),
+    post_receive_coro = loop.create_server(lambda: Protocol(master, logger),
                                            host='127.0.0.1',
                                            port='8090')
     post_receive_server = loop.run_until_complete(post_receive_coro)
     client_server = loop.run_until_complete(client_coro)
-    logger.info('Server running on {}'.format(client_server.sockets[0].getsockname()))
-    logger.info('Server running on {}'.format(post_receive_server.sockets[0].getsockname()))
+    logger.info('Main server running on {}'.format(client_server.sockets[0].getsockname()))
+    logger.info('Post-receive server running on {}'.format(post_receive_server.sockets[0].getsockname()))
     try:
         loop.run_forever()
     except KeyboardInterrupt:

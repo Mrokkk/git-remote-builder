@@ -7,11 +7,6 @@ message Command {
         bytes script = 2;
     }
 
-    message ConnectWorker {
-        string worker_host = 1;
-        int32 worker_port = 2;
-    }
-
     message Authenticate {
         string password = 1;
     }
