@@ -19,6 +19,7 @@ def main():
     else:
         print('Failed')
         sys.exit(1)
+    sock.close()
 
 
 if __name__ == '__main__':
