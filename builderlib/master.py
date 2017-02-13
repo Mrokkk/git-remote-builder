@@ -11,38 +11,8 @@ import secrets
 from base64 import b64encode
 import git
 from . import messages_pb2
+from . import protocol
 from google.protobuf.text_format import MessageToString
-
-class Protocol(asyncio.Protocol):
-
-    logger = None
-    master = None
-    transport = None
-    peername = None
-
-    def __init__(self, master, logger):
-        self.master = master
-        self.logger = logger.getChild(self.__class__.__name__)
-
-    def connection_made(self, transport):
-        self.peername = transport.get_extra_info('peername')
-        self.logger.info('{} opened connection'.format(self.peername))
-        self.transport = transport
-
-    def connection_lost(self, exc):
-        self.logger.info('{} closed connection'.format(self.peername))
-        self.transport.close()
-
-    def data_received(self, data):
-        if not data:
-            self.transport.close()
-            return
-        response = self.master.parse_message(data)
-        if not response:
-            self.transport.close()
-        else:
-            self.transport.write(response)
-
 
 class Master:
 
@@ -111,29 +81,36 @@ def configure_logger(filename):
     return logger
 
 
-def main(name, certfile=None, keyfile=None, port=None):
-    os.umask(0o077)
-    password, ssl_context = '', None
+def create_server(loop, proto, port, ssl_context=None):
+    coro = loop.create_server(proto, host='127.0.0.1', port=port, ssl=ssl_context)
+    return loop.run_until_complete(coro)
+
+
+def create_ssl_context(certfile, keyfile):
+    if certfile and keyfile:
+        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+        ssl_context.load_cert_chain(certfile, keyfile=keyfile)
+        return ssl_context
+    return None
+
+
+def read_password():
+    password = ''
     password = getpass.getpass(prompt='Set password: ')
     if password != getpass.getpass(prompt='Vaildate password: '):
         print('Passwords don\'t match!')
         sys.exit(1)
+    return password
+
+
+def main(name, certfile=None, keyfile=None, port=None):
+    os.umask(0o077)
     logger = configure_logger('log')
-    master = Master(password, git.Repo.init(os.path.join(os.getcwd(), name), bare=True), logger)
-    password = None
+    master = Master(read_password(), git.Repo.init(os.path.join(os.getcwd(), name), bare=True), logger)
     loop = asyncio.get_event_loop()
-    if keyfile and certfile:
-        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-        ssl_context.load_cert_chain(certfile, keyfile=keyfile)
-    client_coro = loop.create_server(lambda: Protocol(master, logger),
-                                     host='127.0.0.1',
-                                     port=port,
-                                     ssl=ssl_context)
-    post_receive_coro = loop.create_server(lambda: Protocol(master, logger),
-                                           host='127.0.0.1',
-                                           port='8090')
-    post_receive_server = loop.run_until_complete(post_receive_coro)
-    client_server = loop.run_until_complete(client_coro)
+    ssl_context = create_ssl_context(certfile, keyfile)
+    client_server = create_server(loop, lambda: protocol.Protocol(master, logger), port, ssl_context=ssl_context)
+    post_receive_server = create_server(loop, lambda: protocol.Protocol(master, logger), 8090)
     logger.info('Main server running on {}'.format(client_server.sockets[0].getsockname()))
     logger.info('Post-receive server running on {}'.format(post_receive_server.sockets[0].getsockname()))
     try:
