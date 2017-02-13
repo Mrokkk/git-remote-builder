@@ -10,6 +10,7 @@ def main():
     parser.add_argument('name', metavar='NAME')
     parser.add_argument('-p', '--port', help='use given port', type=int)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
+    parser.add_argument('-c', '--config', help='read config from file')
     args = parser.parse_args()
     cert, key = None, None
     if args.ssl:
