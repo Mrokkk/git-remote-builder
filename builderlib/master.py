@@ -30,7 +30,7 @@ class Master:
         self.logger.info('Repo at: {}'.format(self.repo.working_dir))
         pass
 
-    def parse_message(self, data):
+    def handle_message(self, data):
         self.msg = self.msg + 1
         message = messages_pb2.Command()
         try:

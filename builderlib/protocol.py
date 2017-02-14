@@ -26,7 +26,7 @@ class Protocol(asyncio.Protocol):
         if not data:
             self.transport.close()
             return
-        response = self.master.parse_message(data)
+        response = self.master.handle_message(data)
         if not response:
             self.transport.close()
         else:

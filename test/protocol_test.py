@@ -26,7 +26,7 @@ def test_close_connection_when_no_data(protocol):
 
 def test_close_connection_when_data_not_valid(protocol):
     transport_mock = Mock()
-    protocol.master.parse_message.return_value = None
+    protocol.master.handle_message.return_value = None
     protocol.connection_made(transport_mock)
     protocol.data_received('somedata')
     transport_mock.close.assert_called_once()
@@ -36,7 +36,7 @@ def test_send_response_when_valid_data(protocol):
     transport_mock = Mock()
     protocol.connection_made(transport_mock)
     protocol.data_received('somedata')
-    protocol.master.parse_message.assert_called_once_with('somedata')
+    protocol.master.handle_message.assert_called_once_with('somedata')
     transport_mock.write.assert_called_once()
 
 
