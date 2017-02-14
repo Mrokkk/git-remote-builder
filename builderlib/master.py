@@ -7,6 +7,7 @@ import logging
 import asyncio
 import getpass
 import secrets
+import string
 from base64 import b64encode
 import git
 from . import messages_pb2
@@ -102,23 +103,37 @@ def read_password():
     return password
 
 
+def create_post_receive_hook(repo, builderlib_root, port):
+    hook_path = os.path.join(repo.working_dir, 'hooks/post-receive')
+    template_string = open('../post-receive.py', 'r').read()
+    post_receive_hook = open(hook_path, 'w')
+    post_receive_hook.write(string.Template(template_string)
+        .substitute(PATH='\'' + builderlib_root + '\'', PORT=port))
+    post_receive_hook.close()
+    os.chmod(hook_path, 0o700)
+
+
 def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     logger = configure_logger('log')
-    master = Master(read_password(), git.Repo.init(os.path.join(os.getcwd(), name + '.git'), bare=True), logger)
+    repo_path = os.path.join(os.getcwd(), name +  '.git')
+    repo = git.Repo.init(repo_path, bare=True)
+    master = Master(read_password(), repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
-    client_server = create_server(loop, lambda: protocol.Protocol(master, logger), port, ssl_context=ssl_context)
-    post_receive_server = create_server(loop, lambda: protocol.Protocol(master, logger), 8090)
-    logger.info('Main server running on {}'.format(client_server.sockets[0].getsockname()))
-    logger.info('Post-receive server running on {}'.format(post_receive_server.sockets[0].getsockname()))
+    main_server = create_server(loop, lambda: protocol.Protocol(master, logger), port, ssl_context=ssl_context)
+    git_hook_server = create_server(loop, lambda: protocol.Protocol(master, logger), 0)
+    logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
+    logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
+    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),
+        git_hook_server.sockets[0].getsockname()[1])
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         print('\nInterrupted')
         pass
     finally:
-        post_receive_server.close()
-        client_server.close()
+        git_hook_server.close()
+        main_server.close()
         loop.close()
 

@@ -4,13 +4,13 @@ import os
 import sys
 import socket
 
-sys.path.insert(1, os.path.abspath(os.path.join(os.getcwd(), '../')))
+sys.path.insert(1, $PATH)
 
 from builderlib import messages_pb2
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = ('localhost', 8090)
+    server_address = ('localhost', $PORT)
     sock.connect(server_address)
     sock.settimeout(10)
     args = input().split()

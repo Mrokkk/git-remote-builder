@@ -5,6 +5,7 @@ import sys
 import argparse
 from builderlib import master
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('name', metavar='NAME')
@@ -16,6 +17,10 @@ def main():
     if args.ssl:
         cert = os.path.abspath(args.ssl[0])
         key = os.path.abspath(args.ssl[1])
+    workspace = os.path.join(os.getcwd(), 'workspace')
+    if not os.path.exists(workspace):
+        os.makedirs(workspace)
+    os.chdir(workspace)
     master.main(args.name, certfile=cert, keyfile=key, port=args.port)
 
 
