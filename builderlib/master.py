@@ -8,11 +8,43 @@ import asyncio
 import getpass
 import secrets
 import string
-from base64 import b64encode
 import git
 from . import messages_pb2
 from . import protocol
 from google.protobuf.text_format import MessageToString
+
+
+class MessagesHandler:
+
+    msg_num = 0
+
+    def __init__(self, callbacks, message_type, logger):
+        self.callbacks = callbacks
+        self.message_type = message_type
+        self.logger = logger.getChild(self.__class__.__name__)
+
+    def handle(self, data):
+        message = self.message_type()
+        try:
+            message.ParseFromString(data)
+        except:
+            self.logger.warning('Bad message type')
+            return None
+        self.msg_num = self.msg_num + 1
+        return self.callbacks[message.WhichOneof('command')](message).SerializeToString()
+
+
+# TODO
+class AuthenticationHandler:
+
+    tokens = []
+
+    def __init__(self, password):
+        self.password = password
+
+    def authenticate(self, password):
+        pass
+
 
 class Master:
 
@@ -28,29 +60,13 @@ class Master:
         self.repo = repo
         self.logger = logger.getChild(self.__class__.__name__)
         self.logger.info('Repo at: {}'.format(self.repo.working_dir))
-        pass
-
-    def handle_message(self, data):
-        self.msg = self.msg + 1
-        message = messages_pb2.Command()
-        try:
-            message.ParseFromString(data)
-        except:
-            self.logger.warning('Bad message')
-            return None
-        if not message.token:
-            if message.WhichOneof('command') == 'auth':
-                return self.handle_authentication_request(message).SerializeToString()
-            elif message.build and not message.build.script:
-                return self.handle_build_request(message).SerializeToString()
-            else:
-                self.logger.warning('Message without token. Closing connection')
-                return None
-        elif message.token in self.clients:
-            return self.handle_user_request(message).SerializeToString()
-        else:
-            self.logger.warning('Bad token in the message')
-        return None
+        self.messages_handler = MessagesHandler(
+            {
+                'auth': lambda msg: self.handle_authentication_request(msg),
+                'build': lambda msg: self.handle_build_request(msg),
+                'connect_slave': lambda msg: self.handle_user_request(msg),
+            },
+            messages_pb2.MasterCommand, logger)
 
     def handle_authentication_request(self, message):
         response = messages_pb2.Result()
@@ -73,9 +89,17 @@ class Master:
 
     def handle_user_request(self, message):
         response = messages_pb2.Result()
-        self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
-        response.code = messages_pb2.Result.OK
+        if self.token_is_valid(message.token):
+            self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
+            response.code = messages_pb2.Result.OK
+        else:
+            return None
         return response
+
+    def token_is_valid(self, token):
+        if token in self.clients:
+            return True
+        return False
 
 
 def configure_logger(filename):
@@ -135,9 +159,9 @@ def main(name, certfile=None, keyfile=None, port=None):
     master = Master(read_password(), repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger),
+    main_server = create_server(loop, lambda: protocol.Protocol(lambda data: master.messages_handler.handle(data), logger),
         port, ssl_context=ssl_context)
-    git_hook_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), 0)
+    git_hook_server = create_server(loop, lambda: protocol.Protocol(lambda data: master.messages_handler.handle(data), logger), 0)
     logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
     logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),

@@ -27,7 +27,7 @@ def main():
     print('Connected')
     token = ''
     password = getpass.getpass('Type password:')
-    token_request = messages_pb2.Command()
+    token_request = messages_pb2.MasterCommand()
     token_request.auth.password = password
     sock.send(token_request.SerializeToString())
     data = sock.recv(1024)
@@ -40,9 +40,9 @@ def main():
     print('Got token: {}'.format(token))
     try:
         for line in sys.stdin:
-            msg = messages_pb2.Command()
-            msg.build.commit_hash = 'b85fe'
-            msg.build.script = bytes(open('examples/build.sh', 'r').read(), 'ascii')
+            msg = messages_pb2.MasterCommand()
+            msg.connect_slave.address = 'b85fe'
+            msg.connect_slave.port = 8090
             msg.token = token
             sock.sendall(msg.SerializeToString())
             data = sock.recv(256)
