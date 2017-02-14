@@ -34,32 +34,37 @@ class MessagesHandler:
         return self.callbacks[message.WhichOneof('command')](message).SerializeToString()
 
 
-# TODO
 class AuthenticationHandler:
 
     tokens = []
 
     def __init__(self, password):
-        self.password = password
+        self._password = password
 
-    def authenticate(self, password):
-        pass
+    def request_token(self, password):
+        if password.strip() == self._password.strip():
+            token = secrets.token_hex(16)
+            self.tokens.append(token)
+            return token
+        return None
+
+    def authenticate(self, token):
+        if token in self.tokens:
+            return True
+        return False
 
 
 class Master:
 
     msg = 0
-    password = None
     repo = None
     logger = None
     slaves = []
     clients = []
 
-    def __init__(self, password, repo, logger):
-        self.password = password
+    def __init__(self, auth_handler, repo, logger):
+        self.auth_handler = auth_handler
         self.repo = repo
-        self.logger = logger.getChild(self.__class__.__name__)
-        self.logger.info('Repo at: {}'.format(self.repo.working_dir))
         self.messages_handler = MessagesHandler(
             {
                 'auth': lambda msg: self.handle_authentication_request(msg),
@@ -67,15 +72,14 @@ class Master:
                 'connect_slave': lambda msg: self.handle_user_request(msg),
             },
             messages_pb2.MasterCommand, logger)
+        self.logger = logger.getChild(self.__class__.__name__)
 
     def handle_authentication_request(self, message):
         response = messages_pb2.Result()
         self.logger.info('Got authentication request')
-        if str(message.auth.password).strip() == str(self.password).strip():
-            token = secrets.token_hex(32)
+        token = self.auth_handler.request_token(message.auth.password)
+        if token:
             response.token = token
-            self.clients.append(token)
-            self.logger.info('Accepted request. Sending token')
         else:
             self.logger.warning('Denied attempt to authenticate with bad password')
             response.code = messages_pb2.Result.FAIL
@@ -89,17 +93,12 @@ class Master:
 
     def handle_user_request(self, message):
         response = messages_pb2.Result()
-        if self.token_is_valid(message.token):
+        if self.auth_handler.authenticate(message.token):
             self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
             response.code = messages_pb2.Result.OK
+            return response
         else:
             return None
-        return response
-
-    def token_is_valid(self, token):
-        if token in self.clients:
-            return True
-        return False
 
 
 def configure_logger(filename):
@@ -154,9 +153,10 @@ def create_post_receive_hook(repo, builderlib_root, port):
 def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     logger = configure_logger('log')
+    auth_handler = AuthenticationHandler(read_password())
     repo_path = os.path.join(os.getcwd(), name +  '.git')
     repo = git.Repo.init(repo_path, bare=True)
-    master = Master(read_password(), repo, logger)
+    master = Master(auth_handler, repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
     main_server = create_server(loop, lambda: protocol.Protocol(lambda data: master.messages_handler.handle(data), logger),
