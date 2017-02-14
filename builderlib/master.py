@@ -41,28 +41,41 @@ class Master:
         response = messages_pb2.Result()
         if not message.token:
             if message.WhichOneof('command') == 'auth':
-                self.logger.info('Got authentication request')
-                if str(message.auth.password).strip() == str(self.password).strip():
-                    self.client_token = secrets.token_hex(16)
-                    response.token = self.client_token
-                    self.logger.info('Accepted request. Sending token')
-                else:
-                    self.logger.warning('Denied attempt to authenticate with bad password')
-                    response.code = messages_pb2.Result.FAIL
+                return self.handle_authentication_request(message).SerializeToString()
             elif message.build and not message.build.script:
-                self.logger.info('Received new commit {}'.format(message.build.commit_hash))
-                response.code = messages_pb2.Result.OK
+                return self.handle_build_request(message).SerializeToString()
             else:
                 self.logger.warning('Message without token. Closing connection')
                 return None
         elif message.token == self.client_token:
-            self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
-            response.code = messages_pb2.Result.OK
+            return self.handle_user_request(message).SerializeToString()
         else:
             self.logger.warning('Bad token in the message')
-            return None
-        return response.SerializeToString()
+        return None
 
+    def handle_authentication_request(self, message):
+        response = messages_pb2.Result()
+        self.logger.info('Got authentication request')
+        if str(message.auth.password).strip() == str(self.password).strip():
+            self.client_token = secrets.token_hex(16)
+            response.token = self.client_token
+            self.logger.info('Accepted request. Sending token')
+        else:
+            self.logger.warning('Denied attempt to authenticate with bad password')
+            response.code = messages_pb2.Result.FAIL
+        return response
+
+    def handle_build_request(self, message):
+        response = messages_pb2.Result()
+        self.logger.info('Received new commit {}'.format(message.build.commit_hash))
+        response.code = messages_pb2.Result.OK
+        return response
+
+    def handle_user_request(self, message):
+        response = messages_pb2.Result()
+        self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
+        response.code = messages_pb2.Result.OK
+        return response
 
 def configure_logger(filename):
     date_format = '%Y.%m.%d:%H.%M.%S'
