@@ -38,7 +38,6 @@ class Master:
         except:
             self.logger.warning('Bad message')
             return None
-        response = messages_pb2.Result()
         if not message.token:
             if message.WhichOneof('command') == 'auth':
                 return self.handle_authentication_request(message).SerializeToString()
@@ -76,6 +75,7 @@ class Master:
         self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
         response.code = messages_pb2.Result.OK
         return response
+
 
 def configure_logger(filename):
     date_format = '%Y.%m.%d:%H.%M.%S'
