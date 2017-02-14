@@ -134,8 +134,8 @@ def main(name, certfile=None, keyfile=None, port=None):
     master = Master(read_password(), repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: protocol.Protocol(master, logger), port, ssl_context=ssl_context)
-    git_hook_server = create_server(loop, lambda: protocol.Protocol(master, logger), 0)
+    main_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), port, ssl_context=ssl_context)
+    git_hook_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), 0)
     logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
     logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),
