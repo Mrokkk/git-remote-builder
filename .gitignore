@@ -1,3 +1,7 @@
-*-workspace/
+workspace/
 *-log
+.cache/
+*.cert
+*.key
+*_pb2.py
 */__pycache__/*
