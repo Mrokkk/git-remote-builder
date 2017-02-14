@@ -21,7 +21,7 @@ class Master:
     repo = None
     logger = None
     slaves = []
-    client_token = None
+    clients = []
 
     def __init__(self, password, repo, logger):
         self.password = password
@@ -46,7 +46,7 @@ class Master:
             else:
                 self.logger.warning('Message without token. Closing connection')
                 return None
-        elif message.token == self.client_token:
+        elif message.token in self.clients:
             return self.handle_user_request(message).SerializeToString()
         else:
             self.logger.warning('Bad token in the message')
@@ -56,8 +56,9 @@ class Master:
         response = messages_pb2.Result()
         self.logger.info('Got authentication request')
         if str(message.auth.password).strip() == str(self.password).strip():
-            self.client_token = secrets.token_hex(16)
-            response.token = self.client_token
+            token = secrets.token_hex(16)
+            response.token = token
+            self.clients.append(token)
             self.logger.info('Accepted request. Sending token')
         else:
             self.logger.warning('Denied attempt to authenticate with bad password')
@@ -134,7 +135,8 @@ def main(name, certfile=None, keyfile=None, port=None):
     master = Master(read_password(), repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), port, ssl_context=ssl_context)
+    main_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger),
+        port, ssl_context=ssl_context)
     git_hook_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), 0)
     logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
     logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))

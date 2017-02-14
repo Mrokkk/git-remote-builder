@@ -7,6 +7,15 @@ message Command {
         bytes script = 2;
     }
 
+    message ConnectWorker {
+        string address = 1;
+        int32 port = 2;
+    }
+
+    message ConnectRequest {
+        string repo_address = 1;
+    }
+
     message Authenticate {
         string password = 1;
     }
