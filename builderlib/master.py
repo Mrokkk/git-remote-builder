@@ -56,7 +56,7 @@ class Master:
         response = messages_pb2.Result()
         self.logger.info('Got authentication request')
         if str(message.auth.password).strip() == str(self.password).strip():
-            token = secrets.token_hex(16)
+            token = secrets.token_hex(32)
             response.token = token
             self.clients.append(token)
             self.logger.info('Accepted request. Sending token')
