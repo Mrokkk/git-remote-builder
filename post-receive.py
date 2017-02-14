@@ -16,7 +16,7 @@ def main():
     args = input().split()
     commit = args[1]
     print('Adding {} to the build queue...'.format(commit))
-    msg = messages_pb2.Command()
+    msg = messages_pb2.MasterCommand()
     msg.build.commit_hash = commit
     sock.send(msg.SerializeToString())
     response = messages_pb2.Result()

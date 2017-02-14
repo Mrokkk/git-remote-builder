@@ -4,62 +4,47 @@ import sys
 import os
 import ssl
 import logging
-import asyncio
 import getpass
-import secrets
 import string
-from base64 import b64encode
+import socket
 import git
 from . import messages_pb2
-from . import protocol
+from .protocol import *
+from .authentication import *
+from .messages_handler import *
+from .application import *
 from google.protobuf.text_format import MessageToString
+
 
 class Master:
 
-    msg = 0
-    password = None
-    repo = None
-    logger = None
+    repo_address = None
     slaves = []
     clients = []
+    logger = None
 
-    def __init__(self, password, repo, logger):
-        self.password = password
-        self.repo = repo
-        self.logger = logger.getChild(self.__class__.__name__)
-        self.logger.info('Repo at: {}'.format(self.repo.working_dir))
-        pass
+    def __init__(self, auth_handler, repo_address):
+        self.auth_handler = auth_handler
+        self.repo_address = repo_address
+        self.messages_handler = MessagesHandler(
+            {
+                'auth': self.handle_authentication_request,
+                'build': self.handle_build_request,
+                'connect_slave': self.handle_user_request,
+            },
+            messages_pb2.MasterCommand)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug('Constructor')
 
-    def handle_message(self, data):
-        self.msg = self.msg + 1
-        message = messages_pb2.Command()
-        try:
-            message.ParseFromString(data)
-        except:
-            self.logger.warning('Bad message')
-            return None
-        if not message.token:
-            if message.WhichOneof('command') == 'auth':
-                return self.handle_authentication_request(message).SerializeToString()
-            elif message.build and not message.build.script:
-                return self.handle_build_request(message).SerializeToString()
-            else:
-                self.logger.warning('Message without token. Closing connection')
-                return None
-        elif message.token in self.clients:
-            return self.handle_user_request(message).SerializeToString()
-        else:
-            self.logger.warning('Bad token in the message')
-        return None
+    def create_protocol(self):
+        return Protocol(lambda data: self.messages_handler.handle(data))
 
     def handle_authentication_request(self, message):
         response = messages_pb2.Result()
         self.logger.info('Got authentication request')
-        if str(message.auth.password).strip() == str(self.password).strip():
-            token = secrets.token_hex(32)
+        token = self.auth_handler.request_token(message.auth.password)
+        if token:
             response.token = token
-            self.clients.append(token)
-            self.logger.info('Accepted request. Sending token')
         else:
             self.logger.warning('Denied attempt to authenticate with bad password')
             response.code = messages_pb2.Result.FAIL
@@ -73,31 +58,12 @@ class Master:
 
     def handle_user_request(self, message):
         response = messages_pb2.Result()
-        self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
-        response.code = messages_pb2.Result.OK
-        return response
-
-
-def configure_logger(filename):
-    date_format = '%Y.%m.%d:%H.%M.%S'
-    format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
-    logging.basicConfig(format=format_string,
-                        datefmt=date_format,
-                        filemode='w',
-                        filename=filename,
-                        level=logging.DEBUG)
-    formatter = logging.Formatter(format_string, datefmt=date_format)
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    console.setLevel(logging.INFO)
-    logger = logging.getLogger('')
-    logger.addHandler(console)
-    return logger
-
-
-def create_server(loop, proto, port, ssl_context=None):
-    coro = loop.create_server(proto, host='127.0.0.1', port=port, ssl=ssl_context)
-    return loop.run_until_complete(coro)
+        if self.auth_handler.authenticate(message.token):
+            self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
+            response.code = messages_pb2.Result.OK
+            return response
+        else:
+            return None
 
 
 def create_ssl_context(certfile, keyfile):
@@ -128,27 +94,13 @@ def create_post_receive_hook(repo, builderlib_root, port):
 
 
 def main(name, certfile=None, keyfile=None, port=None):
-    os.umask(0o077)
-    logger = configure_logger('log')
-    repo_path = os.path.join(os.getcwd(), name +  '.git')
-    repo = git.Repo.init(repo_path, bare=True)
-    master = Master(read_password(), repo, logger)
-    loop = asyncio.get_event_loop()
-    ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger),
-        port, ssl_context=ssl_context)
-    git_hook_server = create_server(loop, lambda: protocol.Protocol(master.handle_message, logger), 0)
-    logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
-    logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
-    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),
-        git_hook_server.sockets[0].getsockname()[1])
+    app = Application()
+    repo = git.Repo.init(name + '.git', bare=True)
+    master = Master(AuthenticationManager(read_password()), repo.working_dir)
+    app.create_server(master.create_protocol, port, ssl_context=create_ssl_context(certfile, keyfile))
+    git_hook_port = app.create_server(master.create_protocol, 0)
+    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
     try:
-        loop.run_forever()
+        app.run()
     except KeyboardInterrupt:
-        print('\nInterrupted')
-        pass
-    finally:
-        git_hook_server.close()
-        main_server.close()
-        loop.close()
-
+        app.stop()

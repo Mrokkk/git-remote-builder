@@ -1,31 +1,42 @@
 syntax = "proto3";
 
-message Command {
+message Authenticate {
+    string password = 1;
+}
+
+message MasterCommand {
+
+    message Build {
+        string commit_hash = 1;
+    }
+
+    message ConnectSlave {
+        string address = 1;
+        int32 port = 2;
+    }
+
+    string token = 1;
+
+    oneof command {
+        Authenticate auth = 2;
+        Build build = 3;
+        ConnectSlave connect_slave = 4;
+    }
+
+}
+
+message SlaveCommand {
 
     message Build {
         string commit_hash = 1;
         bytes script = 2;
     }
 
-    message ConnectWorker {
-        string address = 1;
-        int32 port = 2;
-    }
-
-    message ConnectRequest {
-        string repo_address = 1;
-    }
-
-    message Authenticate {
-        string password = 1;
-    }
-
     string token = 1;
 
     oneof command {
-        Build build = 2;
-        ConnectWorker connect_worker = 3;
-        Authenticate auth = 4;
+        Authenticate auth = 2;
+        Build build = 3;
     }
 
 }
