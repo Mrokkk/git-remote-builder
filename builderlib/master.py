@@ -6,61 +6,21 @@ import ssl
 import logging
 import asyncio
 import getpass
-import secrets
 import string
 import git
 from . import messages_pb2
-from . import protocol
+from .protocol import *
+from .authentication import *
+from .messages_handler import *
 from google.protobuf.text_format import MessageToString
-
-
-class MessagesHandler:
-
-    msg_num = 0
-
-    def __init__(self, callbacks, message_type, logger):
-        self.callbacks = callbacks
-        self.message_type = message_type
-        self.logger = logger.getChild(self.__class__.__name__)
-
-    def handle(self, data):
-        message = self.message_type()
-        try:
-            message.ParseFromString(data)
-        except:
-            self.logger.warning('Bad message type')
-            return None
-        self.msg_num = self.msg_num + 1
-        return self.callbacks[message.WhichOneof('command')](message).SerializeToString()
-
-
-class AuthenticationHandler:
-
-    tokens = []
-
-    def __init__(self, password):
-        self._password = password
-
-    def request_token(self, password):
-        if password.strip() == self._password.strip():
-            token = secrets.token_hex(16)
-            self.tokens.append(token)
-            return token
-        return None
-
-    def authenticate(self, token):
-        if token in self.tokens:
-            return True
-        return False
 
 
 class Master:
 
-    msg = 0
     repo = None
-    logger = None
     slaves = []
     clients = []
+    logger = None
 
     def __init__(self, auth_handler, repo, logger):
         self.auth_handler = auth_handler
@@ -94,7 +54,7 @@ class Master:
     def handle_user_request(self, message):
         response = messages_pb2.Result()
         if self.auth_handler.authenticate(message.token):
-            self.logger.info('{}: {}'.format(self.msg, MessageToString(message, as_one_line=True)))
+            self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
             response.code = messages_pb2.Result.OK
             return response
         else:
@@ -153,15 +113,15 @@ def create_post_receive_hook(repo, builderlib_root, port):
 def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     logger = configure_logger('log')
-    auth_handler = AuthenticationHandler(read_password())
+    auth_handler = AuthenticationManager(read_password())
     repo_path = os.path.join(os.getcwd(), name +  '.git')
     repo = git.Repo.init(repo_path, bare=True)
     master = Master(auth_handler, repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: protocol.Protocol(lambda data: master.messages_handler.handle(data), logger),
+    main_server = create_server(loop, lambda: Protocol(lambda data: master.messages_handler.handle(data), logger),
         port, ssl_context=ssl_context)
-    git_hook_server = create_server(loop, lambda: protocol.Protocol(lambda data: master.messages_handler.handle(data), logger), 0)
+    git_hook_server = create_server(loop, lambda: Protocol(lambda data: master.messages_handler.handle(data), logger), 0)
     logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
     logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),
