@@ -49,8 +49,10 @@ class Slave:
         response = messages_pb2.Result()
         self.logger.info('Received new commit {}'.format(message.build.commit_hash))
         if message.build.script:
+            self.logger.info('Got script')
             response.code = messages_pb2.Result.OK
         else:
+            self.logger.warning('Fuck you')
             response.code = messages_pb2.Result.FAIL
         return response
 

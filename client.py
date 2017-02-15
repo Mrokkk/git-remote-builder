@@ -49,7 +49,7 @@ def main():
     try:
         for line in sys.stdin:
             msg = messages_pb2.MasterCommand()
-            msg.connect_slave.address = 'b85fe'
+            msg.connect_slave.address = '127.0.0.1'
             msg.connect_slave.port = 8090
             msg.token = token
             sock.sendall(msg.SerializeToString())

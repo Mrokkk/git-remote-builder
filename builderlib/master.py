@@ -19,13 +19,16 @@ from google.protobuf.text_format import MessageToString
 class Master:
 
     repo_address = None
+    jobs = []
     slaves = []
     clients = []
     logger = None
 
-    def __init__(self, auth_handler, repo_address):
+    def __init__(self, auth_handler, repo_address, jobs, slaves):
         self.auth_handler = auth_handler
         self.repo_address = repo_address
+        self.jobs = jobs
+        self.slaves = slaves
         self.messages_handler = MessagesHandler(
             {
                 'auth': self.handle_authentication_request,
@@ -60,6 +63,16 @@ class Master:
         response = messages_pb2.Result()
         if self.auth_handler.authenticate(message.token):
             self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            ssl_context.load_cert_chain('../server.cert', '../server.key')
+            sock = ssl_context.wrap_socket(sock)
+            sock.connect(('localhost', 8090))
+            message_to_slave = messages_pb2.SlaveCommand()
+            message_to_slave.build.script = b'test'
+            sock.send(message_to_slave.SerializeToString())
             response.code = messages_pb2.Result.OK
             return response
         else:
@@ -93,10 +106,10 @@ def create_post_receive_hook(repo, builderlib_root, port):
     os.chmod(hook_path, 0o700)
 
 
-def main(name, certfile=None, keyfile=None, port=None):
+def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application()
     repo = git.Repo.init(name + '.git', bare=True)
-    master = Master(AuthenticationManager(read_password()), repo.working_dir)
+    master = Master(AuthenticationManager(read_password()), repo.working_dir, jobs, slaves)
     app.create_server(master.create_protocol, port, ssl_context=create_ssl_context(certfile, keyfile))
     git_hook_port = app.create_server(master.create_protocol, 0)
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
