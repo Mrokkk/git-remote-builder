@@ -5,6 +5,7 @@ import sys
 import argparse
 import logging
 from builderlib import master
+from builderlib import slave
 
 
 def configure_logger(filename):
@@ -46,6 +47,8 @@ def main():
     logger = configure_logger('log')
     if args.master:
         master.main(args.name, certfile=cert, keyfile=key, port=args.port)
+    else:
+        slave.main(args.name, certfile=cert, keyfile=key, port=args.port)
 
 
 if __name__ == '__main__':

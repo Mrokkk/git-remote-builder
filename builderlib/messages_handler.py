@@ -2,6 +2,7 @@
 
 import logging
 from . import messages_pb2
+from google.protobuf.text_format import MessageToString
 
 class MessagesHandler:
 
@@ -24,4 +25,10 @@ class MessagesHandler:
             self.logger.warning('Bad message type')
             return None
         self.msg_num += 1
-        return self.callbacks[message.WhichOneof('command')](message).SerializeToString()
+        try:
+            callback = self.callbacks[message.WhichOneof('command')]
+        except KeyError:
+            self.logger.warning('No callback for that message: {}'.format(
+                MessageToString(message, as_one_line=True)))
+            return None
+        return callback(message).SerializeToString()

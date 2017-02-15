@@ -30,6 +30,7 @@ class Protocol(asyncio.Protocol):
             return
         response = self.message_handler(data)
         if not response:
+            self.logger.warning('No data from message handler. Closing.')
             self.transport.close()
         else:
             self.transport.write(response)
