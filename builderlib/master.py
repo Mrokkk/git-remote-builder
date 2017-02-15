@@ -4,7 +4,6 @@ import sys
 import os
 import ssl
 import logging
-import asyncio
 import getpass
 import string
 import socket
@@ -14,6 +13,7 @@ from .protocol import *
 from .authentication import *
 from .messages_handler import *
 from .connection_factory import *
+from .application import *
 from google.protobuf.text_format import MessageToString
 
 
@@ -24,17 +24,21 @@ class Master:
     clients = []
     logger = None
 
-    def __init__(self, auth_handler, repo_address, logger):
+    def __init__(self, auth_handler, repo_address):
         self.auth_handler = auth_handler
         self.repo_address = repo_address
         self.messages_handler = MessagesHandler(
             {
-                'auth': lambda msg: self.handle_authentication_request(msg),
-                'build': lambda msg: self.handle_build_request(msg),
-                'connect_slave': lambda msg: self.handle_user_request(msg),
+                'auth': self.handle_authentication_request,
+                'build': self.handle_build_request,
+                'connect_slave': self.handle_user_request,
             },
-            messages_pb2.MasterCommand, logger)
-        self.logger = logger.getChild(self.__class__.__name__)
+            messages_pb2.MasterCommand)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug('Constructor')
+
+    def create_protocol(self):
+        return Protocol(lambda data: self.messages_handler.handle(data))
 
     def handle_authentication_request(self, message):
         response = messages_pb2.Result()
@@ -61,28 +65,6 @@ class Master:
             return response
         else:
             return None
-
-
-def configure_logger(filename):
-    date_format = '%Y.%m.%d:%H.%M.%S'
-    format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
-    logging.basicConfig(format=format_string,
-                        datefmt=date_format,
-                        filemode='w',
-                        filename=filename,
-                        level=logging.DEBUG)
-    formatter = logging.Formatter(format_string, datefmt=date_format)
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    console.setLevel(logging.INFO)
-    logger = logging.getLogger('')
-    logger.addHandler(console)
-    return logger
-
-
-def create_server(loop, proto, port, ssl_context=None):
-    coro = loop.create_server(proto, host='127.0.0.1', port=port, ssl=ssl_context)
-    return loop.run_until_complete(coro)
 
 
 def create_ssl_context(certfile, keyfile):
@@ -113,27 +95,13 @@ def create_post_receive_hook(repo, builderlib_root, port):
 
 
 def main(name, certfile=None, keyfile=None, port=None):
-    os.umask(0o077)
-    logger = configure_logger('log')
-    auth_handler = AuthenticationManager(read_password())
+    app = Application()
     repo = git.Repo.init(name + '.git', bare=True)
-    master = Master(auth_handler, repo, logger)
-    loop = asyncio.get_event_loop()
-    ssl_context = create_ssl_context(certfile, keyfile)
-    main_server = create_server(loop, lambda: Protocol(lambda data: master.messages_handler.handle(data), logger),
-        port, ssl_context=ssl_context)
-    git_hook_server = create_server(loop, lambda: Protocol(lambda data: master.messages_handler.handle(data), logger), 0)
-    logger.info('Main server running on {}'.format(main_server.sockets[0].getsockname()))
-    logger.info('Post-receive server running on {}'.format(git_hook_server.sockets[0].getsockname()))
-    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')),
-        git_hook_server.sockets[0].getsockname()[1])
+    master = Master(AuthenticationManager(read_password()), repo.working_dir)
+    app.create_server(master.create_protocol, port, ssl_context=create_ssl_context(certfile, keyfile))
+    git_hook_port = app.create_server(master.create_protocol, 0)
+    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
     try:
-        loop.run_forever()
+        app.run()
     except KeyboardInterrupt:
-        print('\nInterrupted')
-        pass
-    finally:
-        git_hook_server.close()
-        main_server.close()
-        loop.close()
-
+        app.stop()

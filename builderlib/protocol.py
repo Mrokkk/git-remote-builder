@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import asyncio
+import logging
 
 class Protocol(asyncio.Protocol):
 
@@ -9,9 +10,10 @@ class Protocol(asyncio.Protocol):
     transport = None
     peername = None
 
-    def __init__(self, message_handler, logger):
+    def __init__(self, message_handler):
         self.message_handler = message_handler
-        self.logger = logger.getChild(self.__class__.__name__)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug('Constructor')
 
     def connection_made(self, transport):
         self.peername = transport.get_extra_info('peername')

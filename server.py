@@ -3,7 +3,26 @@
 import os
 import sys
 import argparse
+import logging
 from builderlib import master
+
+
+def configure_logger(filename):
+    date_format = '%Y.%m.%d:%H.%M.%S'
+    format_string = '[%(asctime)s:%(levelname).1s:%(name)s]: %(message)s'
+    logging.basicConfig(format=format_string,
+                        datefmt=date_format,
+                        filemode='w',
+                        filename=filename,
+                        level=logging.DEBUG)
+    formatter = logging.Formatter(format_string, datefmt=date_format)
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
+    logger = logging.getLogger('')
+    logger.addHandler(console)
+    return logger
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -21,6 +40,8 @@ def main():
     if not os.path.exists(workspace):
         os.makedirs(workspace)
     os.chdir(workspace)
+    os.umask(0o077)
+    logger = configure_logger('log')
     if args.master:
         master.main(args.name, certfile=cert, keyfile=key, port=args.port)
 
