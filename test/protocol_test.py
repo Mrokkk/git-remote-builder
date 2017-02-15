@@ -8,7 +8,7 @@ from unittest.mock import Mock
 @pytest.fixture
 def protocol():
     from builderlib.protocol import Protocol
-    return Protocol(Mock(), Mock())
+    return Protocol(Mock())
 
 
 def test_making_connection(protocol):
