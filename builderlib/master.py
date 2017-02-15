@@ -12,7 +12,6 @@ from . import messages_pb2
 from .protocol import *
 from .authentication import *
 from .messages_handler import *
-from .connection_factory import *
 from .application import *
 from google.protobuf.text_format import MessageToString
 

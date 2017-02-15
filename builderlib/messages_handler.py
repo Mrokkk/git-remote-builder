@@ -23,5 +23,5 @@ class MessagesHandler:
         except:
             self.logger.warning('Bad message type')
             return None
-        self.msg_num = self.msg_num + 1
+        self.msg_num += 1
         return self.callbacks[message.WhichOneof('command')](message).SerializeToString()
