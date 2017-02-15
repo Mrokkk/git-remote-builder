@@ -10,6 +10,7 @@ from builderlib.connection_factory import *
 from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
 
+
 def create_ssl_context(certfile, keyfile):
     if certfile and keyfile:
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
@@ -25,7 +26,6 @@ def main():
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
-    server_address = ('localhost', args.port)
     ssl_context = create_ssl_context(args.ssl[0], args.ssl[1])
     try:
         sock = ConnectionFactory(ssl_context=ssl_context).create('127.0.0.1', args.port)
