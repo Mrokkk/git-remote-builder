@@ -78,8 +78,8 @@ def read_password():
 
 def main(name, certfile=None, keyfile=None, port=None):
     app = Application()
-    master = Slave(AuthenticationManager(read_password()))
-    app.create_server(master.create_protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
+    slave = Slave(AuthenticationManager(read_password()))
+    app.create_server(slave.create_protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
     try:
         app.run()
     except KeyboardInterrupt:

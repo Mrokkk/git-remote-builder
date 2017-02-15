@@ -3,6 +3,7 @@
 import logging
 import asyncio
 
+
 class Application:
 
     loop = None
