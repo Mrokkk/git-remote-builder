@@ -4,11 +4,11 @@ import sys
 import os
 import ssl
 import logging
-import getpass
 import string
 import socket
 import git
 from . import messages_pb2
+from .utils import *
 from .protocol import *
 from .authentication import *
 from .messages_handler import *
@@ -24,7 +24,7 @@ class Master:
     clients = []
     logger = None
 
-    def __init__(self, auth_handler, repo_address, jobs, slaves):
+    def __init__(self, auth_handler, repo_address, jobs, slaves, client_ssl_context):
         self.auth_handler = auth_handler
         self.repo_address = repo_address
         self.jobs = jobs
@@ -36,6 +36,7 @@ class Master:
                 'connect_slave': self.handle_user_request,
             },
             messages_pb2.MasterCommand)
+        self.client_ssl_context = client_ssl_context
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -64,36 +65,17 @@ class Master:
         if self.auth_handler.authenticate(message.token):
             self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            ssl_context.load_cert_chain('../server.cert', '../server.key')
-            sock = ssl_context.wrap_socket(sock)
+            if self.client_ssl_context:
+                sock = self.client_ssl_context.wrap_socket(sock)
             sock.connect(('localhost', 8090))
             message_to_slave = messages_pb2.SlaveCommand()
             message_to_slave.build.script = b'test'
             sock.send(message_to_slave.SerializeToString())
+            sock.close()
             response.code = messages_pb2.Result.OK
             return response
         else:
             return None
-
-
-def create_ssl_context(certfile, keyfile):
-    if certfile and keyfile:
-        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-        ssl_context.load_cert_chain(certfile, keyfile=keyfile)
-        return ssl_context
-    return None
-
-
-def read_password():
-    password = ''
-    password = getpass.getpass(prompt='Set password: ')
-    if password != getpass.getpass(prompt='Vaildate password: '):
-        print('Passwords don\'t match!')
-        sys.exit(1)
-    return password
 
 
 def create_post_receive_hook(repo, builderlib_root, port):
@@ -109,8 +91,9 @@ def create_post_receive_hook(repo, builderlib_root, port):
 def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application()
     repo = git.Repo.init(name + '.git', bare=True)
-    master = Master(AuthenticationManager(read_password()), repo.working_dir, jobs, slaves)
-    app.create_server(master.create_protocol, port, ssl_context=create_ssl_context(certfile, keyfile))
+    client_ssl_context = create_client_ssl_context(certfile, keyfile)
+    master = Master(AuthenticationManager(read_password()), repo.working_dir, jobs, slaves, client_ssl_context)
+    app.create_server(master.create_protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
     git_hook_port = app.create_server(master.create_protocol, 0)
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
     try:
