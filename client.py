@@ -6,8 +6,18 @@ import os
 import sys
 import argparse
 import getpass
+from builderlib.connection_factory import *
 from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
+
+def create_ssl_context(certfile, keyfile):
+    if certfile and keyfile:
+        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        ssl_context.load_cert_chain(certfile, keyfile)
+        return ssl_context
+    return None
 
 
 def main():
@@ -15,13 +25,10 @@ def main():
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = ('localhost', args.port)
-    if args.ssl:
-        sock = ssl.wrap_socket(sock, certfile=os.path.abspath(args.ssl[0]), keyfile=os.path.abspath(args.ssl[1]))
+    ssl_context = create_ssl_context(args.ssl[0], args.ssl[1])
     try:
-        sock.connect(server_address)
-        sock.settimeout(10)
+        sock = ConnectionFactory(ssl_context=ssl_context).create('127.0.0.1', args.port)
     except socket.error as err:
         print('Connection error: {}'.format(err))
         sys.exit(1)

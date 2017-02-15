@@ -7,24 +7,26 @@ import logging
 import asyncio
 import getpass
 import string
+import socket
 import git
 from . import messages_pb2
 from .protocol import *
 from .authentication import *
 from .messages_handler import *
+from .connection_factory import *
 from google.protobuf.text_format import MessageToString
 
 
 class Master:
 
-    repo = None
+    repo_address = None
     slaves = []
     clients = []
     logger = None
 
-    def __init__(self, auth_handler, repo, logger):
+    def __init__(self, auth_handler, repo_address, logger):
         self.auth_handler = auth_handler
-        self.repo = repo
+        self.repo_address = repo_address
         self.messages_handler = MessagesHandler(
             {
                 'auth': lambda msg: self.handle_authentication_request(msg),
@@ -114,8 +116,7 @@ def main(name, certfile=None, keyfile=None, port=None):
     os.umask(0o077)
     logger = configure_logger('log')
     auth_handler = AuthenticationManager(read_password())
-    repo_path = os.path.join(os.getcwd(), name +  '.git')
-    repo = git.Repo.init(repo_path, bare=True)
+    repo = git.Repo.init(name + '.git', bare=True)
     master = Master(auth_handler, repo, logger)
     loop = asyncio.get_event_loop()
     ssl_context = create_ssl_context(certfile, keyfile)
