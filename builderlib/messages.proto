@@ -7,12 +7,18 @@ message Authenticate {
 message MasterCommand {
 
     message Build {
-        string commit_hash = 1;
+        string branch = 1;
+        string commit_hash = 2;
     }
 
     message ConnectSlave {
         string address = 1;
         int32 port = 2;
+    }
+
+    message CreateJob {
+        string name = 1;
+        string script_path = 2;
     }
 
     string token = 1;
@@ -21,6 +27,7 @@ message MasterCommand {
         Authenticate auth = 2;
         Build build = 3;
         ConnectSlave connect_slave = 4;
+        CreateJob create_job = 5;
     }
 
 }
@@ -28,8 +35,11 @@ message MasterCommand {
 message SlaveCommand {
 
     message Build {
-        string commit_hash = 1;
-        bytes script = 2;
+        string repo_address = 1;
+        string branch = 2;
+        string commit_hash = 3;
+        bytes script = 4;
+        int32 log_server_port = 5;
     }
 
     string token = 1;

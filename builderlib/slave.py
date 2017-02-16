@@ -7,6 +7,7 @@ import logging
 import getpass
 import string
 import socket
+import git
 from . import messages_pb2
 from .protocol import *
 from .authentication import *
@@ -14,6 +15,7 @@ from .messages_handler import *
 from .application import *
 from .utils import *
 from google.protobuf.text_format import MessageToString
+from subprocess import call, Popen
 
 
 class Slave:
@@ -25,7 +27,7 @@ class Slave:
         self.auth_handler = auth_handler
         self.messages_handler = MessagesHandler(
             {
-                'auth': self.handle_authentication_request,
+                'auth': self.auth_handler.handle_authentication_request,
                 'build': self.handle_build_request
             },
             messages_pb2.SlaveCommand)
@@ -33,47 +35,45 @@ class Slave:
         self.logger.debug('Constructor')
 
     def create_protocol(self):
-        return Protocol(lambda data: self.messages_handler.handle(data))
+        return Protocol(self.messages_handler.handle)
 
-    def handle_authentication_request(self, message):
-        response = messages_pb2.Result()
-        self.logger.info('Got authentication request')
-        token = self.auth_handler.request_token(message.auth.password)
-        if token:
-            response.token = token
-        else:
-            self.logger.warning('Denied attempt to authenticate with bad password')
-            response.code = messages_pb2.Result.FAIL
-        return response
-
-    def handle_build_request(self, message):
+    def handle_build_request(self, message, peername):
+        if not self.auth_handler.authenticate(message.token):
+            return None
+        fail = False
         response = messages_pb2.Result()
         self.logger.info('Received new commit {}'.format(message.build.commit_hash))
-        if message.build.script:
-            self.logger.info('Got script')
-            response.code = messages_pb2.Result.OK
-        else:
-            self.logger.warning('Fuck you')
+        if not message.build.repo_address:
+            self.logger.warning('No repo address')
+            fail = True
+        if not message.build.script:
+            self.logger.warning('No script')
+            fail = True
+        if not message.build.branch:
+            self.logger.warning('No branch')
+            fail = True
+        if fail:
             response.code = messages_pb2.Result.FAIL
+            return response
+        self.repo_name = os.path.basename(message.build.repo_address)
+        script_file = open('build.sh', 'w')
+        script_file.write(message.build.script.decode('ascii'))
+        script_file.close()
+        os.chmod('build.sh', 0o700)
+        if not os.path.exists(self.repo_name):
+            repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
+        self.build(self.repo_name, (peername[0], message.build.log_server_port))
+        response.code = messages_pb2.Result.OK
         return response
 
-    def handle_user_request(self, message):
-        response = messages_pb2.Result()
-        if self.auth_handler.authenticate(message.token):
-            self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
-            response.code = messages_pb2.Result.OK
-            return response
-        else:
-            return None
-
-
-def read_password():
-    password = ''
-    password = getpass.getpass(prompt='Set password: ')
-    if password != getpass.getpass(prompt='Vaildate password: '):
-        print('Passwords don\'t match!')
-        sys.exit(1)
-    return password
+    def build(self, repo_name, address):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(address)
+        f = sock.makefile('w')
+        Popen(['../build.sh'], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
+            shell=True)
+        f.close()
+        sock.close()
 
 
 def main(name, certfile=None, keyfile=None, port=None):

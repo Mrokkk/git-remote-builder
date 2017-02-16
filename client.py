@@ -49,9 +49,20 @@ def main():
     try:
         for line in sys.stdin:
             msg = messages_pb2.MasterCommand()
-            msg.connect_slave.address = '127.0.0.1'
-            msg.connect_slave.port = 8090
             msg.token = token
+            args = line.split()
+            command = args[0]
+            args = args[1:]
+            if command == 'connect':
+                msg.connect_slave.address = args[0]
+                msg.connect_slave.port = int(args[1])
+            elif command == 'create':
+                msg.create_job.name = args[0]
+                msg.create_job.script_path = args[1]
+            elif command == 'build':
+                msg.build.commit_hash = args[0]
+            else:
+                continue
             sock.sendall(msg.SerializeToString())
             data = sock.recv(256)
             if not data:

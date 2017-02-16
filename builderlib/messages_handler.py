@@ -17,7 +17,7 @@ class MessagesHandler:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
-    def handle(self, data):
+    def handle(self, data, peername):
         message = self.message_type()
         try:
             message.ParseFromString(data)
@@ -27,11 +27,12 @@ class MessagesHandler:
         self.msg_num += 1
         try:
             callback = self.callbacks[message.WhichOneof('command')]
-        except KeyError:
+        except:
             self.logger.warning('No callback for that message: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
-        response = callback(message)
+        response = callback(message, peername)
         if not response:
+            self.logger.warning('Callback returned None')
             return None
         return response.SerializeToString()

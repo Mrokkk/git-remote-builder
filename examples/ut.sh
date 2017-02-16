@@ -2,9 +2,11 @@
 
 set -e
 
+export TERM=xterm-256color
+
 mkdir -p build && cd build
 if [ ! -e Makefile ]; then
     cmake ..
 fi
-make tests-run -j$(nproc) -l$(nproc)
+unbuffer make tests-run -j$(nproc) -l$(nproc)
 

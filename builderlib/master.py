@@ -6,6 +6,7 @@ import ssl
 import logging
 import string
 import socket
+import socket
 import git
 from . import messages_pb2
 from .utils import *
@@ -27,13 +28,16 @@ class Master:
     def __init__(self, auth_handler, repo_address, jobs, slaves, client_ssl_context):
         self.auth_handler = auth_handler
         self.repo_address = repo_address
-        self.jobs = jobs
-        self.slaves = slaves
+        if jobs:
+            self.jobs = jobs
+        if slaves:
+            self.slaves = slaves
         self.messages_handler = MessagesHandler(
             {
-                'auth': self.handle_authentication_request,
+                'auth': self.auth_handler.handle_authentication_request,
                 'build': self.handle_build_request,
-                'connect_slave': self.handle_user_request,
+                'connect_slave': self.handle_connect_slave,
+                'create_job': self.handle_job_adding
             },
             messages_pb2.MasterCommand)
         self.client_ssl_context = client_ssl_context
@@ -41,41 +45,67 @@ class Master:
         self.logger.debug('Constructor')
 
     def create_protocol(self):
-        return Protocol(lambda data: self.messages_handler.handle(data))
+        return Protocol(self.messages_handler.handle)
 
-    def handle_authentication_request(self, message):
+    def handle_build_request(self, message, peername):
         response = messages_pb2.Result()
-        self.logger.info('Got authentication request')
-        token = self.auth_handler.request_token(message.auth.password)
-        if token:
-            response.token = token
-        else:
-            self.logger.warning('Denied attempt to authenticate with bad password')
-            response.code = messages_pb2.Result.FAIL
-        return response
-
-    def handle_build_request(self, message):
-        response = messages_pb2.Result()
-        self.logger.info('Received new commit {}'.format(message.build.commit_hash))
+        self.logger.info('Received new commit {}/{}'.format(message.build.branch, message.build.commit_hash))
+        message_to_slave = self.create_slave_build_request(message.build.branch)
+        sock = self.slaves[0][0]
+        sock.send(message_to_slave.SerializeToString())
         response.code = messages_pb2.Result.OK
         return response
 
-    def handle_user_request(self, message):
+    def create_slave_build_request(self, branch):
+        message = messages_pb2.SlaveCommand()
+        message.token = self.slaves[0][1]
+        message.build.repo_address = os.path.abspath('repo.git')
+        message.build.branch = branch
+        message.build.log_server_port = 8000 # FIXME
+        message.build.script = open(self.jobs[0][1]).read().encode('ascii')
+        return message
+
+    def handle_job_adding(self, message, peername):
         response = messages_pb2.Result()
-        if self.auth_handler.authenticate(message.token):
-            self.logger.info('{}'.format(MessageToString(message, as_one_line=True)))
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            if self.client_ssl_context:
-                sock = self.client_ssl_context.wrap_socket(sock)
-            sock.connect(('localhost', 8090))
-            message_to_slave = messages_pb2.SlaveCommand()
-            message_to_slave.build.script = b'test'
-            sock.send(message_to_slave.SerializeToString())
-            sock.close()
-            response.code = messages_pb2.Result.OK
-            return response
-        else:
+        if not self.auth_handler.authenticate(message.token):
             return None
+        if not message.create_job.name:
+            self.logger.warning('No job name in the message')
+            response.code = messages_pb2.Result.FAIL
+            return response
+        if not message.create_job.script_path:
+            self.logger.warning('No script path in the message')
+            response.code = messages_pb2.Result.FAIL
+            return response
+        self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
+            message.create_job.script_path))
+        response.code = messages_pb2.Result.OK
+        self.jobs.append((message.create_job.name, os.path.abspath(message.create_job.script_path)))
+        return response
+
+    def handle_connect_slave(self, message, peername):
+        response = messages_pb2.Result()
+        if not self.auth_handler.authenticate(message.token):
+            return None
+        address = (message.connect_slave.address, message.connect_slave.port)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.client_ssl_context:
+            sock = self.client_ssl_context.wrap_socket(sock)
+        self.logger.info('{}: Connecting slave: {}'.format(peername, address))
+        sock.connect(address)
+        token_request = messages_pb2.SlaveCommand()
+        token_request.auth.password = self.auth_handler._password
+        sock.send(token_request.SerializeToString())
+        data = sock.recv(1024)
+        response.ParseFromString(data)
+        if not response.token:
+            self.logger.error('Bad pass!')
+            response.error = 'Bad password'
+            response.code = messages_pb2.Result.FAIL
+            return response
+        self.slaves.append((sock, response.token))
+        response.code = messages_pb2.Result.OK
+        return response
 
 
 def create_post_receive_hook(repo, builderlib_root, port):
