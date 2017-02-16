@@ -31,4 +31,7 @@ class MessagesHandler:
             self.logger.warning('No callback for that message: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
-        return callback(message).SerializeToString()
+        response = callback(message)
+        if not response:
+            return None
+        return response.SerializeToString()
