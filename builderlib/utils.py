@@ -25,7 +25,10 @@ def create_server_ssl_context(certfile, keyfile):
 
 def read_password():
     password = ''
-    password = getpass.getpass(prompt='Set password: ')
+    try:
+        password = getpass.getpass(prompt='Set password: ')
+    except KeyboardInterrupt:
+        sys.exit(1)
     if password != getpass.getpass(prompt='Vaildate password: '):
         print('Passwords don\'t match!')
         sys.exit(1)

@@ -28,10 +28,9 @@ class Protocol(asyncio.Protocol):
         if not data:
             self.transport.close()
             return
-        response = self.message_handler(data)
+        response = self.message_handler(data, self.peername)
         if not response:
             self.logger.warning('No data from message handler. Closing.')
             self.transport.close()
         else:
             self.transport.write(response)
-

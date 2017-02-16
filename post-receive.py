@@ -15,9 +15,11 @@ def main():
     sock.settimeout(10)
     args = input().split()
     commit = args[1]
-    print('Adding {} to the build queue...'.format(commit))
+    branch = os.path.basename(args[2])
+    print('Adding {}/{} to the build queue...'.format(branch, commit))
     msg = messages_pb2.MasterCommand()
     msg.build.commit_hash = commit
+    msg.build.branch = branch
     sock.send(msg.SerializeToString())
     response = messages_pb2.Result()
     data = sock.recv(256)
@@ -25,7 +27,7 @@ def main():
     if response.code == messages_pb2.Result.OK:
         print('OK')
     else:
-        print('Failed')
+        print('Failed: {}'.format(response.error))
         sys.exit(1)
     sock.close()
 
