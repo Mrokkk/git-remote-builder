@@ -62,15 +62,15 @@ class Slave:
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
             repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
-        self.build(self.repo_name, (peername[0], message.build.log_server_port))
+        self.build(self.repo_name, os.path.abspath('build.sh'), (peername[0], message.build.log_server_port))
         response.code = messages_pb2.Result.OK
         return response
 
-    def build(self, repo_name, address):
+    def build(self, repo_name, build_script, address):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(address)
         f = sock.makefile('w')
-        Popen(['../build.sh'], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
+        Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
             shell=True)
         f.close()
         sock.close()
