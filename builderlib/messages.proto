@@ -57,6 +57,7 @@ message Result {
         NONE = 0;
         OK = 1;
         FAIL = 2;
+        BUSY = 3;
     }
 
     Code code = 1;

@@ -8,6 +8,7 @@ import getpass
 import string
 import socket
 import git
+import asyncio
 from . import messages_pb2
 from .protocol import *
 from .authentication import *
@@ -22,6 +23,7 @@ class Slave:
 
     repo_address = None
     logger = None
+    busy = False
 
     def __init__(self, auth_handler):
         self.auth_handler = auth_handler
@@ -42,6 +44,9 @@ class Slave:
             return None
         fail = False
         response = messages_pb2.Result()
+        if self.busy:
+            response.code = messages_pb2.Result.BUSY
+            return response
         self.logger.info('Received new commit {}'.format(message.build.commit_hash))
         if not message.build.repo_address:
             self.logger.warning('No repo address')
@@ -62,18 +67,23 @@ class Slave:
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
             repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
-        self.build(self.repo_name, os.path.abspath('build.sh'), (peername[0], message.build.log_server_port))
+        asyncio.ensure_future(self.build(self.repo_name, os.path.abspath('build.sh'), (peername[0],
+            message.build.log_server_port)))
         response.code = messages_pb2.Result.OK
         return response
 
-    def build(self, repo_name, build_script, address):
+    async def build(self, repo_name, build_script, address):
+        self.busy = True
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(address)
         f = sock.makefile('w')
-        Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
+        proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
             shell=True)
         f.close()
+        proc.wait()
         sock.close()
+        self.busy = False
+        self.logger.info('Finished build')
 
 
 def main(name, certfile=None, keyfile=None, port=None):
