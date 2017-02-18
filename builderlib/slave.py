@@ -67,12 +67,12 @@ class Slave:
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
             repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
-        asyncio.ensure_future(self.build(self.repo_name, os.path.abspath('build.sh'), (peername[0],
-            message.build.log_server_port)))
+        asyncio.ensure_future(self.build(self.repo_name, message.build.branch, message.build.commit_hash,
+            os.path.abspath('build.sh'), (peername[0], message.build.log_server_port)))
         response.code = messages_pb2.Result.OK
         return response
 
-    async def build(self, repo_name, build_script, address):
+    async def build(self, repo_name, branch, commit, build_script, address):
         self.busy = True
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(address)
