@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import getpass
+import readline
 from builderlib.connection_factory import *
 from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
@@ -20,6 +21,25 @@ def create_ssl_context(certfile, keyfile):
         return ssl_context
     return None
 
+
+class Completer:
+
+    def __init__(self, options):
+        self.options = sorted(options)
+        self.matches = None
+        return
+
+    def complete(self, text, state):
+        if state == 0:
+            if text:
+                self.matches = [s for s in self.options if s and s.startswith(text)]
+            else:
+                self.matches = self.options[:]
+        try:
+            response = self.matches[state]
+        except IndexError:
+            response = None
+        return response
 
 def main():
     parser = argparse.ArgumentParser()
@@ -46,8 +66,11 @@ def main():
         sys.exit(1)
     token = response.token
     print('Got token: {}'.format(token))
+    readline.parse_and_bind('tab: complete')
+    readline.set_completer(Completer(['connect', 'create']).complete)
     try:
-        for line in sys.stdin:
+        while True:
+            line = input('> ').strip('\r\n')
             msg = messages_pb2.MasterCommand()
             msg.token = token
             args = line.split()
@@ -59,8 +82,6 @@ def main():
             elif command == 'create':
                 msg.create_job.name = args[0]
                 msg.create_job.script_path = args[1]
-            elif command == 'build':
-                msg.build.commit_hash = args[0]
             else:
                 continue
             sock.sendall(msg.SerializeToString())
