@@ -43,19 +43,7 @@ def main():
     except socket.error as err:
         print('Connection error: {}'.format(err))
         sys.exit(1)
-    token = ''
-    password = getpass.getpass('Type password:')
-    token_request = messages_pb2.MasterCommand()
-    token_request.auth.password = password
-    sock.send(token_request.SerializeToString())
-    data = sock.recv(1024)
-    response = messages_pb2.Result()
-    response.ParseFromString(data)
-    if not response.token:
-        print('Bad pass!')
-        sys.exit(1)
-    token = response.token
-    print('Got token: {}'.format(token))
+    token = authenticate(sock)
     readline.parse_and_bind('tab: complete')
     readline.set_completer(Completer(['connect', 'create']).complete)
     try:
@@ -75,6 +63,22 @@ def create_ssl_context(certfile, keyfile):
         return ssl_context
     return None
 
+
+def authenticate(sock):
+    token = ''
+    password = getpass.getpass('Type password:')
+    token_request = messages_pb2.MasterCommand()
+    token_request.auth.password = password
+    sock.send(token_request.SerializeToString())
+    data = sock.recv(1024)
+    response = messages_pb2.Result()
+    response.ParseFromString(data)
+    if not response.token:
+        print('Bad pass!')
+        sys.exit(1)
+    token = response.token
+    print('Got token: {}'.format(token))
+    return token
 
 def read_and_send(sock, token):
     line = input('> ').strip('\r\n')
