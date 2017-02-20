@@ -12,16 +12,6 @@ from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
 
 
-def create_ssl_context(certfile, keyfile):
-    if certfile and keyfile:
-        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        ssl_context.load_cert_chain(certfile, keyfile)
-        return ssl_context
-    return None
-
-
 class Completer:
 
     def __init__(self, options):
@@ -41,6 +31,7 @@ class Completer:
             response = None
         return response
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
@@ -52,7 +43,6 @@ def main():
     except socket.error as err:
         print('Connection error: {}'.format(err))
         sys.exit(1)
-    print('Connected')
     token = ''
     password = getpass.getpass('Type password:')
     token_request = messages_pb2.MasterCommand()
@@ -70,30 +60,44 @@ def main():
     readline.set_completer(Completer(['connect', 'create']).complete)
     try:
         while True:
-            line = input('> ').strip('\r\n')
-            msg = messages_pb2.MasterCommand()
-            msg.token = token
-            args = line.split()
-            command = args[0]
-            args = args[1:]
-            if command == 'connect':
-                msg.connect_slave.address = args[0]
-                msg.connect_slave.port = int(args[1])
-            elif command == 'create':
-                msg.create_job.name = args[0]
-                msg.create_job.script_path = args[1]
-            else:
-                continue
-            sock.sendall(msg.SerializeToString())
-            data = sock.recv(256)
-            if not data:
-                print('No response from server')
-            response = messages_pb2.Result()
-            response.ParseFromString(data)
-            print('Server sent: {}'.format(MessageToString(response, as_one_line=True)))
+            read_and_send(sock, token)
     except KeyboardInterrupt:
         print('Closing connection')
         sock.close()
+
+
+def create_ssl_context(certfile, keyfile):
+    if certfile and keyfile:
+        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        ssl_context.load_cert_chain(certfile, keyfile)
+        return ssl_context
+    return None
+
+
+def read_and_send(sock, token):
+    line = input('> ').strip('\r\n')
+    msg = messages_pb2.MasterCommand()
+    msg.token = token
+    args = line.split()
+    command = args[0]
+    args = args[1:]
+    if command == 'connect':
+        msg.connect_slave.address = args[0]
+        msg.connect_slave.port = int(args[1])
+    elif command == 'create':
+        msg.create_job.name = args[0]
+        msg.create_job.script_path = args[1]
+    else:
+        return
+    sock.sendall(msg.SerializeToString())
+    data = sock.recv(256)
+    if not data:
+        print('No response from server')
+    response = messages_pb2.Result()
+    response.ParseFromString(data)
+    print('Server sent: {}'.format(MessageToString(response, as_one_line=True)))
 
 
 if __name__ == '__main__':
