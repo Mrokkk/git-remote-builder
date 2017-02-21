@@ -101,7 +101,12 @@ class Master:
         if self.client_ssl_context:
             sock = self.client_ssl_context.wrap_socket(sock)
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
-        sock.connect(address)
+        try:
+            sock.connect(address)
+        except socket.error as err:
+            self.logger.error('Connection error: {}'.format(err))
+            response.code = messages_pb2.Result.FAIL
+            return response
         token_request = messages_pb2.SlaveCommand()
         token_request.auth.password = self.auth_handler._password
         sock.send(token_request.SerializeToString())
@@ -113,6 +118,7 @@ class Master:
             response.code = messages_pb2.Result.FAIL
             return response
         self.slaves.append((sock, response.token))
+        response.token = ''
         response.code = messages_pb2.Result.OK
         return response
 
