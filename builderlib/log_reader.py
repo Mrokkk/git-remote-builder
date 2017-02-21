@@ -2,10 +2,6 @@
 
 import sys
 import os
-import ssl
-import logging
-import string
-import socket
 import asyncio
 from application import *
 
