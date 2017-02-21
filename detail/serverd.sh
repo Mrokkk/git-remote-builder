@@ -49,8 +49,8 @@ serverd_build() {
             continue
         fi
         local worker_hostname=$(dirname $worker)
-        info "Got build log on $worker_hostname:$log_port"
-        read_build_log $worker_hostname $log_port $build_number $worker &
+        # info "Got build log on $worker_hostname:$log_port"
+        # read_build_log $worker_hostname $log_port $build_number $worker &
     done
     build_number=$((build_number+1))
 }
