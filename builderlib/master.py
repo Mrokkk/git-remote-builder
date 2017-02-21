@@ -6,8 +6,8 @@ import ssl
 import logging
 import string
 import socket
-import socket
 import git
+import subprocess
 from . import messages_pb2
 from .utils import *
 from .protocol import *
@@ -57,11 +57,12 @@ class Master:
         return response
 
     def create_slave_build_request(self, branch):
+        # TODO
         message = messages_pb2.SlaveCommand()
         message.token = self.slaves[0][1]
         message.build.repo_address = os.path.abspath('repo.git')
         message.build.branch = branch
-        message.build.log_server_port = 8000 # FIXME
+        message.build.log_server_port = self.jobs[0][2]
         message.build.script = open(self.jobs[0][1]).read().encode('ascii')
         return message
 
@@ -79,8 +80,16 @@ class Master:
             return response
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
             message.create_job.script_path))
+        try:
+            log_server = subprocess.Popen(['../builderlib/log_reader.py'], stdout=subprocess.PIPE, bufsize=1)
+            port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
+        except:
+            self.logger.critical('Cannot start log server')
+            response.code = messages_pb2.Result.FAIL
+            return response
+        self.logger.info('Started log server at port {}'.format(port))
         response.code = messages_pb2.Result.OK
-        self.jobs.append((message.create_job.name, os.path.abspath(message.create_job.script_path)))
+        self.jobs.append((message.create_job.name, os.path.abspath(message.create_job.script_path), port))
         return response
 
     def handle_connect_slave(self, message, peername):
