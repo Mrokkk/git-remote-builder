@@ -73,17 +73,18 @@ class Slave:
         return response
 
     async def build(self, repo_name, branch, commit, build_script, address):
+        self.logger.info('Writing to {}'.format(address))
         self.busy = True
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(address)
         f = sock.makefile('w')
         proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
             shell=True)
-        f.close()
         proc.wait()
-        sock.close()
         self.busy = False
         self.logger.info('Finished build')
+        f.close()
+        sock.close()
 
 
 def main(name, certfile=None, keyfile=None, port=None):

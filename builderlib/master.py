@@ -76,16 +76,17 @@ class Master:
             return create_result(messages_pb2.Result.FAIL, error='No script')
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
             message.create_job.script_path))
-        port = self.create_log_server()
+        port = self.create_log_server(message.create_job.name)
         if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         self.jobs.append(
             (message.create_job.name, os.path.abspath(message.create_job.script_path), port))
         return create_result(messages_pb2.Result.OK)
 
-    def create_log_server(self):
+    def create_log_server(self, job_name):
         try:
-            log_server = subprocess.Popen(['../builderlib/log_reader.py'], stdout=subprocess.PIPE, bufsize=1)
+            log_server = subprocess.Popen(['../builderlib/log_reader.py', job_name],
+                stdout=subprocess.PIPE, bufsize=1)
             port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
             self.logger.info('Started log server at port {}'.format(port))
             return port
