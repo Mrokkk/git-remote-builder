@@ -8,6 +8,8 @@ import string
 import socket
 import git
 import subprocess
+import threading
+import time
 from . import messages_pb2
 from .result import create_result
 from .utils import *
@@ -68,7 +70,7 @@ class Master:
     def handle_job_adding(self, message, peername):
         if not self.auth_handler.authenticate(message.token):
             return None
-        error = validate_job_adding_message(message)
+        error = self.validate_job_adding_message(message)
         if error:
             return error
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
@@ -108,6 +110,7 @@ class Master:
             return None
         address = (message.connect_slave.address, message.connect_slave.port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
         if self.client_ssl_context:
             sock = self.client_ssl_context.wrap_socket(sock)
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
@@ -126,8 +129,14 @@ class Master:
             self.logger.error('Bad pass!')
             return create_result(messages_pb2.Result.FAIL, error='Bad password')
         self.slaves.append((sock, response.token))
+        self.thread = threading.Thread(target=self.watch_slave, args=(), daemon=True)
+        self.thread.start()
         return create_result(messages_pb2.Result.OK)
 
+    def watch_slave(self):
+        # TODO
+        while True:
+            time.sleep(10)
 
 def create_post_receive_hook(repo, builderlib_root, port):
     hook_path = os.path.join(repo.working_dir, 'hooks/post-receive')

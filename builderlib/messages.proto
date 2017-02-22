@@ -46,7 +46,8 @@ message SlaveCommand {
 
     oneof command {
         Authenticate auth = 2;
-        Build build = 3;
+        int32 test = 3;
+        Build build = 4;
     }
 
 }

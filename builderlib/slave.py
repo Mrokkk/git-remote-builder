@@ -31,7 +31,8 @@ class Slave:
         self.messages_handler = MessagesHandler(
             {
                 'auth': self.auth_handler.handle_authentication_request,
-                'build': self.handle_build_request
+                'build': self.handle_build_request,
+                'test': self.handle_master_health_request
             },
             messages_pb2.SlaveCommand)
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -86,6 +87,10 @@ class Slave:
         sock.close()
         self.busy = False
 
+    def handle_master_health_request(self, message, peername):
+        if not self.auth_handler.authenticate(message.token):
+            return None
+        return create_result(messages_pb2.Result.OK)
 
 def main(name, certfile=None, keyfile=None, port=None):
     app = Application()
