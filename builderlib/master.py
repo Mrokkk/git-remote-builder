@@ -9,6 +9,7 @@ import socket
 import git
 import subprocess
 from . import messages_pb2
+from .result import create_result
 from .utils import *
 from .protocol import *
 from .authentication import *
@@ -53,8 +54,7 @@ class Master:
         message_to_slave = self.create_slave_build_request(message.build.branch)
         sock = self.slaves[0][0]
         sock.send(message_to_slave.SerializeToString())
-        response.code = messages_pb2.Result.OK
-        return response
+        return create_result(messages_pb2.Result.OK)
 
     def create_slave_build_request(self, branch):
         # TODO
@@ -67,17 +67,14 @@ class Master:
         return message
 
     def handle_job_adding(self, message, peername):
-        response = messages_pb2.Result()
         if not self.auth_handler.authenticate(message.token):
             return None
         if not message.create_job.name:
             self.logger.warning('No job name in the message')
-            response.code = messages_pb2.Result.FAIL
-            return response
+            return create_result(messages_pb2.Result.FAIL, error='No job')
         if not message.create_job.script_path:
             self.logger.warning('No script path in the message')
-            response.code = messages_pb2.Result.FAIL
-            return response
+            return create_result(messages_pb2.Result.FAIL, error='No script')
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
             message.create_job.script_path))
         try:
@@ -85,15 +82,13 @@ class Master:
             port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
         except:
             self.logger.critical('Cannot start log server')
-            response.code = messages_pb2.Result.FAIL
-            return response
+            return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         self.logger.info('Started log server at port {}'.format(port))
-        response.code = messages_pb2.Result.OK
-        self.jobs.append((message.create_job.name, os.path.abspath(message.create_job.script_path), port))
-        return response
+        self.jobs.append(
+            (message.create_job.name, os.path.abspath(message.create_job.script_path), port))
+        return create_result(messages_pb2.Result.OK)
 
     def handle_connect_slave(self, message, peername):
-        response = messages_pb2.Result()
         if not self.auth_handler.authenticate(message.token):
             return None
         address = (message.connect_slave.address, message.connect_slave.port)
@@ -105,22 +100,18 @@ class Master:
             sock.connect(address)
         except socket.error as err:
             self.logger.error('Connection error: {}'.format(err))
-            response.code = messages_pb2.Result.FAIL
-            return response
+            return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
         token_request = messages_pb2.SlaveCommand()
         token_request.auth.password = self.auth_handler._password
         sock.send(token_request.SerializeToString())
         data = sock.recv(1024)
+        response = messages_pb2.Result()
         response.ParseFromString(data)
         if not response.token:
             self.logger.error('Bad pass!')
-            response.error = 'Bad password'
-            response.code = messages_pb2.Result.FAIL
-            return response
+            return create_result(messages_pb2.Result.FAIL, error='Bad password')
         self.slaves.append((sock, response.token))
-        response.token = ''
-        response.code = messages_pb2.Result.OK
-        return response
+        return create_result(messages_pb2.Result.OK)
 
 
 def create_post_receive_hook(repo, builderlib_root, port):
