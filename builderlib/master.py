@@ -74,6 +74,9 @@ class Master:
         if not message.create_job.script_path:
             self.logger.warning('No script path in the message')
             return create_result(messages_pb2.Result.FAIL, error='No script')
+        if not os.path.exists(message.create_job.script_path):
+            self.logger.warning('Script file does not exist!')
+            return create_result(messages_pb2.Result.FAIL, error='No such script')
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
             message.create_job.script_path))
         port = self.create_log_server(message.create_job.name)
