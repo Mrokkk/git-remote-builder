@@ -15,6 +15,7 @@ from .authentication import *
 from .messages_handler import *
 from .application import *
 from .utils import *
+from .result import *
 from google.protobuf.text_format import MessageToString
 from subprocess import call, Popen
 
@@ -42,24 +43,12 @@ class Slave:
     def handle_build_request(self, message, peername):
         if not self.auth_handler.authenticate(message.token):
             return None
-        fail = False
-        response = messages_pb2.Result()
         if self.busy:
-            response.code = messages_pb2.Result.BUSY
-            return response
+            return create_result(messages_pb2.Result.BUSY)
+        error = self.validate_build_message(message)
+        if error:
+            return error
         self.logger.info('Received new commit {}'.format(message.build.commit_hash))
-        if not message.build.repo_address:
-            self.logger.warning('No repo address')
-            fail = True
-        if not message.build.script:
-            self.logger.warning('No script')
-            fail = True
-        if not message.build.branch:
-            self.logger.warning('No branch')
-            fail = True
-        if fail:
-            response.code = messages_pb2.Result.FAIL
-            return response
         self.repo_name = os.path.basename(message.build.repo_address)
         script_file = open('build.sh', 'w')
         script_file.write(message.build.script.decode('ascii'))
@@ -69,8 +58,19 @@ class Slave:
             repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
         asyncio.ensure_future(self.build(self.repo_name, message.build.branch, message.build.commit_hash,
             os.path.abspath('build.sh'), (peername[0], message.build.log_server_port)))
-        response.code = messages_pb2.Result.OK
-        return response
+        return create_result(messages_pb2.Result.OK)
+
+    def validate_build_message(self, message):
+        if not message.build.repo_address:
+            self.logger.warning('No repo address')
+            return create_result(messages_pb2.Result.FAIL, error='No repo')
+        if not message.build.script:
+            self.logger.warning('No script')
+            return create_result(messages_pb2.Result.FAIL, error='No script')
+        if not message.build.branch:
+            self.logger.warning('No branch')
+            return create_result(messages_pb2.Result.FAIL, error='No branch')
+        return None
 
     async def build(self, repo_name, branch, commit, build_script, address):
         self.logger.info('Writing to {}'.format(address))
@@ -81,10 +81,10 @@ class Slave:
         proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
             shell=True)
         proc.wait()
-        self.busy = False
         self.logger.info('Finished build')
         f.close()
         sock.close()
+        self.busy = False
 
 
 def main(name, certfile=None, keyfile=None, port=None):
@@ -94,4 +94,6 @@ def main(name, certfile=None, keyfile=None, port=None):
     try:
         app.run()
     except KeyboardInterrupt:
+        pass
+    finally:
         app.stop()

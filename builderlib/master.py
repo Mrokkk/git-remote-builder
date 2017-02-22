@@ -90,8 +90,8 @@ class Master:
             port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
             self.logger.info('Started log server at port {}'.format(port))
             return port
-        except:
-            self.logger.critical('Cannot start log server')
+        except Exception as exc:
+            self.logger.critical('Cannot start log server: {}'.format(exc.__class__.__name__))
             return None
 
     def handle_connect_slave(self, message, peername):
