@@ -49,7 +49,6 @@ class Master:
         return Protocol(self.messages_handler.handle)
 
     def handle_build_request(self, message, peername):
-        response = messages_pb2.Result()
         self.logger.info('Received new commit {}/{}'.format(message.build.branch, message.build.commit_hash))
         message_to_slave = self.create_slave_build_request(message.build.branch)
         sock = self.slaves[0][0]
@@ -77,16 +76,22 @@ class Master:
             return create_result(messages_pb2.Result.FAIL, error='No script')
         self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
             message.create_job.script_path))
-        try:
-            log_server = subprocess.Popen(['../builderlib/log_reader.py'], stdout=subprocess.PIPE, bufsize=1)
-            port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
-        except:
-            self.logger.critical('Cannot start log server')
+        port = self.create_log_server()
+        if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
-        self.logger.info('Started log server at port {}'.format(port))
         self.jobs.append(
             (message.create_job.name, os.path.abspath(message.create_job.script_path), port))
         return create_result(messages_pb2.Result.OK)
+
+    def create_log_server(self):
+        try:
+            log_server = subprocess.Popen(['../builderlib/log_reader.py'], stdout=subprocess.PIPE, bufsize=1)
+            port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
+            self.logger.info('Started log server at port {}'.format(port))
+            return port
+        except:
+            self.logger.critical('Cannot start log server')
+            return None
 
     def handle_connect_slave(self, message, peername):
         if not self.auth_handler.authenticate(message.token):
