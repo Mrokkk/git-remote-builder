@@ -45,6 +45,8 @@ class Master:
             messages_pb2.MasterCommand)
         self.client_ssl_context = client_ssl_context
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.slaves_watcher = threading.Thread(target=self.watch_slave, args=(), daemon=True)
+        self.slaves_watcher.start()
         self.logger.debug('Constructor')
 
     def create_protocol(self):
@@ -129,8 +131,6 @@ class Master:
             self.logger.error('Bad pass!')
             return create_result(messages_pb2.Result.FAIL, error='Bad password')
         self.slaves.append((sock, response.token))
-        self.slaves_watcher = threading.Thread(target=self.watch_slave, args=(), daemon=True)
-        self.slaves_watcher.start()
         return create_result(messages_pb2.Result.OK)
 
     def watch_slave(self):
@@ -140,9 +140,11 @@ class Master:
                     message = messages_pb2.SlaveCommand()
                     message.test = 1234
                     message.token = slave[1]
-                    slave[0].send(message.SerializeToString())
                     try:
+                        slave[0].send(message.SerializeToString())
                         data = slave[0].recv(1024)
+                        if not data:
+                            raise
                     except:
                         self.logger.error('Cannot connect to slave')
                         break
@@ -150,7 +152,6 @@ class Master:
                     response.ParseFromString(data)
                     if response.code == messages_pb2.Result.FAIL:
                         self.logger.error('Slaved failed')
-                    else:
             time.sleep(60)
 
 def create_post_receive_hook(repo, builderlib_root, port):
