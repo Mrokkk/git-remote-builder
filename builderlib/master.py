@@ -129,8 +129,8 @@ class Master:
             self.logger.error('Bad pass!')
             return create_result(messages_pb2.Result.FAIL, error='Bad password')
         self.slaves.append((sock, response.token))
-        self.thread = threading.Thread(target=self.watch_slave, args=(), daemon=True)
-        self.thread.start()
+        self.slaves_watcher = threading.Thread(target=self.watch_slave, args=(), daemon=True)
+        self.slaves_watcher.start()
         return create_result(messages_pb2.Result.OK)
 
     def watch_slave(self):
@@ -151,7 +151,6 @@ class Master:
                     if response.code == messages_pb2.Result.FAIL:
                         self.logger.error('Slaved failed')
                     else:
-                        self.logger.info('Slave\'s OK')
             time.sleep(60)
 
 def create_post_receive_hook(repo, builderlib_root, port):
@@ -175,4 +174,6 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     try:
         app.run()
     except KeyboardInterrupt:
+        pass
+    finally:
         app.stop()
