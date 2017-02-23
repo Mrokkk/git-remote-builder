@@ -134,9 +134,25 @@ class Master:
         return create_result(messages_pb2.Result.OK)
 
     def watch_slave(self):
-        # TODO
         while True:
-            time.sleep(10)
+            if self.slaves:
+                for slave in self.slaves:
+                    message = messages_pb2.SlaveCommand()
+                    message.test = 1234
+                    message.token = slave[1]
+                    slave[0].send(message.SerializeToString())
+                    try:
+                        data = slave[0].recv(1024)
+                    except:
+                        self.logger.error('Cannot connect to slave')
+                        break
+                    response = messages_pb2.Result()
+                    response.ParseFromString(data)
+                    if response.code == messages_pb2.Result.FAIL:
+                        self.logger.error('Slaved failed')
+                    else:
+                        self.logger.info('Slave\'s OK')
+            time.sleep(60)
 
 def create_post_receive_hook(repo, builderlib_root, port):
     hook_path = os.path.join(repo.working_dir, 'hooks/post-receive')
