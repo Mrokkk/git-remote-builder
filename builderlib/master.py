@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from . import messages_pb2
-from .result import create_result
+from .message_helpers import create_result
 from .utils import *
 from .protocol import *
 from .authentication import *
@@ -51,8 +51,9 @@ class Master:
         return Protocol(self.messages_handler.handle)
 
     def handle_build_request(self, message, peername):
-        self.logger.info('Received new commit {}/{}'.format(message.build.branch, message.build.commit_hash))
-        message_to_slave = self.create_slave_build_request(message.build.branch)
+        message = message.build
+        self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
+        message_to_slave = self.create_slave_build_request(message.branch)
         sock = self.slaves[0][0]
         sock.send(message_to_slave.SerializeToString())
         return create_result(messages_pb2.Result.OK)
@@ -64,30 +65,32 @@ class Master:
         message.build.repo_address = os.path.abspath('repo.git')
         message.build.branch = branch
         message.build.log_server_port = self.jobs[0][2]
-        message.build.script = open(self.jobs[0][1]).read().encode('ascii')
+        with open(self.jobs[0][1]) as f:
+            message.build.script = f.read().encode('ascii')
         return message
 
     def handle_job_adding(self, message, peername):
+        message = message.create_job
         error = self.validate_job_adding_message(message)
         if error:
             return error
-        self.logger.info('Adding job: {} with script {}'.format(message.create_job.name,
-            message.create_job.script_path))
-        port = self.create_log_server(message.create_job.name)
+        self.logger.info('Adding job: {} with script {}'.format(message.name,
+            message.script_path))
+        port = self.create_log_server(message.name)
         if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         self.jobs.append(
-            (message.create_job.name, os.path.abspath(message.create_job.script_path), port))
+            (message.name, os.path.abspath(message.script_path), port))
         return create_result(messages_pb2.Result.OK)
 
     def validate_job_adding_message(self, message):
-        if not message.create_job.name:
+        if not message.name:
             self.logger.warning('No job name in the message')
             return create_result(messages_pb2.Result.FAIL, error='No job')
-        if not message.create_job.script_path:
+        if not message.script_path:
             self.logger.warning('No script path in the message')
             return create_result(messages_pb2.Result.FAIL, error='No script')
-        if not os.path.exists(message.create_job.script_path):
+        if not os.path.exists(message.script_path):
             self.logger.warning('Script file does not exist!')
             return create_result(messages_pb2.Result.FAIL, error='No such script')
         return None

@@ -15,7 +15,7 @@ from .authentication import *
 from .messages_handler import *
 from .application import *
 from .utils import *
-from .result import *
+from .message_helpers import *
 from google.protobuf.text_format import MessageToString
 from subprocess import call, Popen
 
@@ -44,29 +44,30 @@ class Slave:
     def handle_build_request(self, message, peername):
         if self.busy:
             return create_result(messages_pb2.Result.BUSY)
+        message = message.build
         error = self.validate_build_message(message)
         if error:
             return error
-        self.logger.info('Received new commit {}'.format(message.build.commit_hash))
-        self.repo_name = os.path.basename(message.build.repo_address)
+        self.logger.info('Received new commit {}'.format(message.commit_hash))
+        self.repo_name = os.path.basename(message.repo_address)
         script_file = open('build.sh', 'w')
-        script_file.write(message.build.script.decode('ascii'))
+        script_file.write(message.script.decode('ascii'))
         script_file.close()
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
-            repo = git.Repo.clone_from(message.build.repo_address, self.repo_name)
-        asyncio.ensure_future(self.build(self.repo_name, message.build.branch, message.build.commit_hash,
-            os.path.abspath('build.sh'), (peername[0], message.build.log_server_port)))
+            repo = git.Repo.clone_from(message.repo_address, self.repo_name)
+        asyncio.ensure_future(self.build(self.repo_name, message.branch, message.commit_hash,
+            os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
         return create_result(messages_pb2.Result.OK)
 
     def validate_build_message(self, message):
-        if not message.build.repo_address:
+        if not message.repo_address:
             self.logger.warning('No repo address')
             return create_result(messages_pb2.Result.FAIL, error='No repo')
-        if not message.build.script:
+        if not message.script:
             self.logger.warning('No script')
             return create_result(messages_pb2.Result.FAIL, error='No script')
-        if not message.build.branch:
+        if not message.branch:
             self.logger.warning('No branch')
             return create_result(messages_pb2.Result.FAIL, error='No branch')
         return None
