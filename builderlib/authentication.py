@@ -38,3 +38,5 @@ class AuthenticationManager:
             response.code = messages_pb2.Result.FAIL
         return response
 
+    def wrap_message_handler(self, func):
+        return lambda message, peername: None if not self.authenticate(message.token) else func(message, peername)

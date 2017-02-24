@@ -39,8 +39,8 @@ class Master:
             {
                 'auth': self.auth_handler.handle_authentication_request,
                 'build': self.handle_build_request,
-                'connect_slave': self.handle_connect_slave,
-                'create_job': self.handle_job_adding
+                'connect_slave': self.auth_handler.wrap_message_handler(self.handle_connect_slave),
+                'create_job': self.auth_handler.wrap_message_handler(self.handle_job_adding)
             },
             messages_pb2.MasterCommand)
         self.client_ssl_context = client_ssl_context
@@ -70,8 +70,6 @@ class Master:
         return message
 
     def handle_job_adding(self, message, peername):
-        if not self.auth_handler.authenticate(message.token):
-            return None
         error = self.validate_job_adding_message(message)
         if error:
             return error
@@ -108,8 +106,6 @@ class Master:
             return None
 
     def handle_connect_slave(self, message, peername):
-        if not self.auth_handler.authenticate(message.token):
-            return None
         address = (message.connect_slave.address, message.connect_slave.port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(10)
