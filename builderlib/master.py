@@ -35,14 +35,11 @@ class Master:
             self.jobs = jobs
         if slaves:
             self.slaves = slaves
-        self.messages_handler = MessagesHandler(
-            {
-                'auth': self.auth_handler.handle_authentication_request,
-                'build': self.handle_build_request,
-                'connect_slave': self.auth_handler.wrap_message_handler(self.handle_connect_slave),
-                'create_job': self.auth_handler.wrap_message_handler(self.handle_job_adding)
-            },
-            messages_pb2.MasterCommand)
+        self.messages_handler = MessagesHandler(messages_pb2.MasterCommand)
+        self.messages_handler.register_handler('auth', self.auth_handler.handle_authentication_request)
+        self.messages_handler.register_handler('build', self.handle_build_request)
+        self.messages_handler.register_handler('connect_slave', self.handle_connect_slave, self.auth_handler.authentication_callback)
+        self.messages_handler.register_handler('create_job', self.handle_job_adding, self.auth_handler.authentication_callback)
         self.client_ssl_context = client_ssl_context
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
@@ -51,7 +48,6 @@ class Master:
         return Protocol(self.messages_handler.handle)
 
     def handle_build_request(self, message, peername):
-        message = message.build
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
         message_to_slave = self.create_slave_build_request(message.branch)
         sock = self.slaves[0][0]
@@ -70,7 +66,6 @@ class Master:
         return message
 
     def handle_job_adding(self, message, peername):
-        message = message.create_job
         error = self.validate_job_adding_message(message)
         if error:
             return error
@@ -107,7 +102,7 @@ class Master:
             return None
 
     def handle_connect_slave(self, message, peername):
-        address = (message.connect_slave.address, message.connect_slave.port)
+        address = (message.address, message.port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(10)
         if self.client_ssl_context:

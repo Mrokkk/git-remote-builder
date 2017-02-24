@@ -28,13 +28,9 @@ class Slave:
 
     def __init__(self, auth_handler):
         self.auth_handler = auth_handler
-        self.messages_handler = MessagesHandler(
-            {
-                'auth': self.auth_handler.handle_authentication_request,
-                'build': self.auth_handler.wrap_message_handler(self.handle_build_request),
-                'test': self.auth_handler.wrap_message_handler(self.handle_master_health_request)
-            },
-            messages_pb2.SlaveCommand)
+        self.messages_handler = MessagesHandler(messages_pb2.SlaveCommand)
+        self.messages_handler.register_handler('auth', self.auth_handler.handle_authentication_request)
+        self.messages_handler.register_handler('build', self.handle_build_request, self.auth_handler.authentication_callback)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -44,7 +40,6 @@ class Slave:
     def handle_build_request(self, message, peername):
         if self.busy:
             return create_result(messages_pb2.Result.BUSY)
-        message = message.build
         error = self.validate_build_message(message)
         if error:
             return error
@@ -86,8 +81,6 @@ class Slave:
         sock.close()
         self.busy = False
 
-    def handle_master_health_request(self, message, peername):
-        return create_result(messages_pb2.Result.OK)
 
 def main(name, certfile=None, keyfile=None, port=None):
     app = Application()
