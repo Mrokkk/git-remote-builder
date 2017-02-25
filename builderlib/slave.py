@@ -28,9 +28,8 @@ class Slave:
 
     def __init__(self, auth_handler):
         self.auth_handler = auth_handler
-        self.messages_handler = MessagesHandler(messages_pb2.SlaveCommand)
-        self.messages_handler.register_handler('auth', self.auth_handler.handle_authentication_request)
-        self.messages_handler.register_handler('build', self.handle_build_request, self.auth_handler.authentication_callback)
+        self.messages_handler = MessagesHandler(messages_pb2.SlaveCommand, self.auth_handler)
+        self.messages_handler.register_handler('build', self.handle_build_request)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 

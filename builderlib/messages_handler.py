@@ -10,14 +10,16 @@ class MessagesHandler:
     callbacks = {}
     message_type = None
     logger = None
+    auth_handler = None
 
-    def __init__(self, message_type):
+    def __init__(self, message_type, auth_handler):
         self.message_type = message_type
+        self.auth_handler = auth_handler
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
-    def register_handler(self, message_name, handler, validator=None):
-        self.callbacks[message_name] = (handler, validator)
+    def register_handler(self, message_name, handler, require_auth=True):
+        self.callbacks[message_name] = (handler, require_auth)
 
     def handle(self, data, peername):
         message = self.message_type()
@@ -27,15 +29,20 @@ class MessagesHandler:
             self.logger.warning('Bad message type')
             return None
         self.msg_num += 1
+        if message.WhichOneof('command') == 'auth':
+            resp = self.auth_handler.handle_authentication_request(message.auth, peername)
+            if not resp:
+                return None
+            return resp.SerializeToString()
         try:
             callback = self.callbacks[message.WhichOneof('command')][0]
-            validator = self.callbacks[message.WhichOneof('command')][1]
+            require_auth = self.callbacks[message.WhichOneof('command')][1]
         except:
             self.logger.error('No callback for that message: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
-        if validator:
-            if not validator(message, peername):
+        if require_auth:
+            if not self.auth_handler.authentication_callback(message, peername):
                 return None
         response = callback(eval('message.{}'.format(message.WhichOneof('command'))), peername)
         if not response:

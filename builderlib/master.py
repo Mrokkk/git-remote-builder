@@ -35,11 +35,10 @@ class Master:
             self.jobs = jobs
         if slaves:
             self.slaves = slaves
-        self.messages_handler = MessagesHandler(messages_pb2.MasterCommand)
-        self.messages_handler.register_handler('auth', self.auth_handler.handle_authentication_request)
-        self.messages_handler.register_handler('build', self.handle_build_request)
-        self.messages_handler.register_handler('connect_slave', self.handle_connect_slave, self.auth_handler.authentication_callback)
-        self.messages_handler.register_handler('create_job', self.handle_job_adding, self.auth_handler.authentication_callback)
+        self.messages_handler = MessagesHandler(messages_pb2.MasterCommand, self.auth_handler)
+        self.messages_handler.register_handler('build', self.handle_build_request, require_auth=False)
+        self.messages_handler.register_handler('connect_slave', self.handle_connect_slave)
+        self.messages_handler.register_handler('create_job', self.handle_job_adding)
         self.client_ssl_context = client_ssl_context
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
