@@ -8,6 +8,7 @@ import argparse
 import getpass
 import readline
 from builderlib.connection_factory import *
+from builderlib.utils import *
 from builderlib import messages_pb2
 from google.protobuf.text_format import MessageToString
 
@@ -37,7 +38,7 @@ def main():
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
-    ssl_context = create_ssl_context(args.ssl[0], args.ssl[1])
+    ssl_context = create_client_ssl_context(args.ssl[0], args.ssl[1])
     try:
         sock = ConnectionFactory(ssl_context=ssl_context).create('127.0.0.1', args.port)
     except socket.error as err:
@@ -54,21 +55,10 @@ def main():
         sock.close()
 
 
-def create_ssl_context(certfile, keyfile):
-    if certfile and keyfile:
-        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        ssl_context.load_cert_chain(certfile, keyfile)
-        return ssl_context
-    return None
-
-
 def authenticate(sock):
     token = ''
-    password = getpass.getpass('Type password:')
     token_request = messages_pb2.MasterCommand()
-    token_request.auth.password = password
+    token_request.auth.password = read_password()
     sock.send(token_request.SerializeToString())
     data = sock.recv(1024)
     response = messages_pb2.Result()
@@ -90,6 +80,7 @@ def read_and_send(sock, token):
     if command == 'connect':
         msg.connect_slave.address = args[0]
         msg.connect_slave.port = int(args[1])
+        msg.connect_slave.password = read_password()
     elif command == 'create':
         msg.create_job.name = args[0]
         msg.create_job.script_path = args[1]

@@ -14,6 +14,7 @@ message MasterCommand {
     message ConnectSlave {
         string address = 1;
         int32 port = 2;
+        string password = 3;
     }
 
     message CreateJob {

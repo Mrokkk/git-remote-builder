@@ -26,15 +26,11 @@ class Slave:
     logger = None
     busy = False
 
-    def __init__(self, auth_handler):
-        self.auth_handler = auth_handler
-        self.messages_handler = MessagesHandler(messages_pb2.SlaveCommand, self.auth_handler)
+    def __init__(self, messages_handler):
+        self.messages_handler = messages_handler
         self.messages_handler.register_handler('build', self.handle_build_request)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
-
-    def create_protocol(self):
-        return Protocol(self.messages_handler.handle)
 
     def handle_build_request(self, message, peername):
         if self.busy:
@@ -83,8 +79,10 @@ class Slave:
 
 def main(name, certfile=None, keyfile=None, port=None):
     app = Application()
-    slave = Slave(AuthenticationManager(read_password()))
-    app.create_server(slave.create_protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
+    auth_manager = AuthenticationManager(read_password(validate=True))
+    messages_handler = MessagesHandler(messages_pb2.SlaveCommand, auth_manager)
+    slave = Slave(messages_handler)
+    app.create_server(lambda: Protocol(messages_handler.handle), port, ssl_context=create_server_ssl_context(certfile, keyfile))
     try:
         app.run()
     except KeyboardInterrupt:

@@ -8,8 +8,9 @@ import logging
 
 class LogProtocol(asyncio.Protocol):
 
-    def __init__(self, log_name):
+    def __init__(self, log_name, on_close_callback=None):
         self.log_name = log_name
+        self.on_close_callback = on_close_callback
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -23,6 +24,8 @@ class LogProtocol(asyncio.Protocol):
         self.logger.info('{} closed connection'.format(self.peername))
         self.file.close()
         self.transport.close()
+        if self.on_close_callback:
+            self.on_close_callback()
 
     def data_received(self, data):
         self.file.write(data.decode('utf-8'))
