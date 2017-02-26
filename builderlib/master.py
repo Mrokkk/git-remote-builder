@@ -16,6 +16,7 @@ from .utils import *
 from .protocol import *
 from .authentication import *
 from .messages_handler import *
+from .connection_factory import *
 from .application import *
 from .log_reader import LogProtocol
 from google.protobuf.text_format import MessageToString
@@ -27,16 +28,13 @@ class Master:
     jobs = []
     slaves = []
     clients = []
+    server_factory = None
     logger = None
 
-    def __init__(self, messages_handler, repo_address, client_ssl_context, server_factory):
+    def __init__(self, repo_address, server_factory, connection_factory):
         self.repo_address = repo_address
-        self.messages_handler = messages_handler
-        self.messages_handler.register_handler('build', self.handle_build_request, require_auth=False)
-        self.messages_handler.register_handler('connect_slave', self.handle_connect_slave)
-        self.messages_handler.register_handler('create_job', self.handle_job_adding)
-        self.client_ssl_context = client_ssl_context
         self.server_factory = server_factory
+        self.connection_factory = connection_factory
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -85,16 +83,12 @@ class Master:
 
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)
-        if self.client_ssl_context:
-            sock = self.client_ssl_context.wrap_socket(sock)
-        self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
-            sock.connect(address)
+            sock = self.connection_factory.create(message.address, message.port)
         except socket.error as err:
             self.logger.error('Connection error: {}'.format(err))
             return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
+        self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         token_request = messages_pb2.SlaveCommand()
         token_request.auth.password = message.password
         sock.send(token_request.SerializeToString())
@@ -121,10 +115,12 @@ def create_post_receive_hook(repo, builderlib_root, port):
 def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application()
     repo = git.Repo.init(name + '.git', bare=True)
-    client_ssl_context = create_client_ssl_context(certfile, keyfile)
+    master = Master(repo.working_dir, app.create_server_thread, ConnectionFactory(ssl_context=create_client_ssl_context(certfile, keyfile)))
     auth_manager = AuthenticationManager(read_password(validate=True))
     messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
-    master = Master(messages_handler, repo.working_dir, client_ssl_context, app.create_server_thread)
+    messages_handler.register_handler('build', master.handle_build_request, require_auth=False)
+    messages_handler.register_handler('connect_slave', master.handle_connect_slave)
+    messages_handler.register_handler('create_job', master.handle_job_adding)
     app.create_server(lambda: Protocol(messages_handler.handle), port, ssl_context=create_server_ssl_context(certfile, keyfile))
     git_hook_port = app.create_server(lambda: Protocol(messages_handler.handle), 0)
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
