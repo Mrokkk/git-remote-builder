@@ -121,8 +121,9 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     messages_handler.register_handler('build', master.handle_build_request, require_auth=False)
     messages_handler.register_handler('connect_slave', master.handle_connect_slave)
     messages_handler.register_handler('create_job', master.handle_job_adding)
-    app.create_server(lambda: Protocol(messages_handler.handle), port, ssl_context=create_server_ssl_context(certfile, keyfile))
-    git_hook_port = app.create_server(lambda: Protocol(messages_handler.handle), 0)
+    protocol = Protocol(messages_handler.handle)
+    app.create_server(lambda: protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
+    git_hook_port = app.create_server(lambda: protocol, 0)
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
     try:
         app.run()
