@@ -17,6 +17,7 @@ from .protocol import *
 from .authentication import *
 from .messages_handler import *
 from .application import *
+from .log_reader import LogProtocol
 from google.protobuf.text_format import MessageToString
 
 
@@ -28,7 +29,7 @@ class Master:
     clients = []
     logger = None
 
-    def __init__(self, auth_handler, repo_address, jobs, slaves, client_ssl_context):
+    def __init__(self, auth_handler, repo_address, jobs, slaves, client_ssl_context, server_factory):
         self.auth_handler = auth_handler
         self.repo_address = repo_address
         if jobs:
@@ -40,6 +41,7 @@ class Master:
         self.messages_handler.register_handler('connect_slave', self.handle_connect_slave)
         self.messages_handler.register_handler('create_job', self.handle_job_adding)
         self.client_ssl_context = client_ssl_context
+        self.server_factory = server_factory
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -70,7 +72,7 @@ class Master:
             return error
         self.logger.info('Adding job: {} with script {}'.format(message.name,
             message.script_path))
-        port = self.create_log_server(message.name)
+        port = self.server_factory(lambda: LogProtocol(message.name))
         if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         self.jobs.append(
@@ -88,17 +90,6 @@ class Master:
             self.logger.warning('Script file does not exist!')
             return create_result(messages_pb2.Result.FAIL, error='No such script')
         return None
-
-    def create_log_server(self, job_name):
-        try:
-            log_server = subprocess.Popen(['../builderlib/log_reader.py', job_name],
-                stdout=subprocess.PIPE, bufsize=1)
-            port = int(log_server.stdout.readline().decode('ascii').strip('\n'))
-            self.logger.info('Started log server at port {}'.format(port))
-            return port
-        except Exception as exc:
-            self.logger.critical('Cannot start log server: {}'.format(exc.__class__.__name__))
-            return None
 
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)
@@ -139,7 +130,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application()
     repo = git.Repo.init(name + '.git', bare=True)
     client_ssl_context = create_client_ssl_context(certfile, keyfile)
-    master = Master(AuthenticationManager(read_password()), repo.working_dir, jobs, slaves, client_ssl_context)
+    master = Master(AuthenticationManager(read_password()), repo.working_dir, jobs, slaves, client_ssl_context, app.create_server_thread)
     app.create_server(master.create_protocol, port, ssl_context=create_server_ssl_context(certfile, keyfile))
     git_hook_port = app.create_server(master.create_protocol, 0)
     create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)

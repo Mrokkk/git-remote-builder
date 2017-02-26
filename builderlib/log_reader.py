@@ -4,7 +4,6 @@ import sys
 import os
 import asyncio
 import logging
-from application import *
 
 
 class LogProtocol(asyncio.Protocol):
@@ -27,22 +26,3 @@ class LogProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         self.file.write(data.decode('utf-8'))
-
-
-def main():
-    log_name = sys.argv[1]
-    logging.basicConfig(filemode='w',
-                        filename='log_log',
-                        level=logging.DEBUG)
-    app = Application()
-    port = app.create_server(lambda: LogProtocol(log_name), 0)
-    print(port)
-    sys.stdout.flush()
-    try:
-        app.run()
-    except KeyboardInterrupt:
-        app.stop()
-
-
-if __name__ == '__main__':
-    main()
