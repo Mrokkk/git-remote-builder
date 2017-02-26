@@ -72,7 +72,7 @@ class Slave:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(address)
         f = sock.makefile('w')
-        proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, universal_newlines=True,
+        proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, stderr=f, universal_newlines=True,
             shell=True)
         proc.wait()
         self.logger.info('Finished build')
