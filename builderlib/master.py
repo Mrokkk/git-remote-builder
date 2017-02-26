@@ -62,11 +62,12 @@ class Master:
             return error
         self.logger.info('Adding job: {} with script {}'.format(message.name,
             message.script_path))
-        port = self.server_factory(lambda: LogProtocol(message.name))
+        log_protocol = LogProtocol(message.name)
+        port = self.server_factory(lambda: log_protocol)
         if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         self.jobs.append(
-            (message.name, os.path.abspath(message.script_path), port))
+            (message.name, os.path.abspath(message.script_path), port, log_protocol))
         return create_result(messages_pb2.Result.OK)
 
     def validate_job_adding_message(self, message):
