@@ -76,12 +76,12 @@ class Slave:
 
 
 def main(name, certfile=None, keyfile=None, port=None):
-    app = Application()
+    app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile))
     slave = Slave()
     auth_manager = AuthenticationManager(read_password(validate=True))
     messages_handler = MessagesHandler(messages_pb2.SlaveCommand, auth_manager)
     messages_handler.register_handler('build', slave.handle_build_request)
-    app.create_server(lambda: Protocol(messages_handler.handle), port, ssl_context=create_server_ssl_context(certfile, keyfile))
+    app.create_server(lambda: Protocol(messages_handler.handle), port)
     try:
         app.run()
     except KeyboardInterrupt:

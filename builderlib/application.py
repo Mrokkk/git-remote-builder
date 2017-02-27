@@ -3,6 +3,7 @@
 import logging
 import asyncio
 import threading
+from .connection import *
 
 
 class Application:
@@ -14,12 +15,15 @@ class Application:
     condition = threading.Condition()
     port = None
 
-    def __init__(self):
+    def __init__(self, server_ssl_context=None, client_ssl_context=None):
+        self.server_ssl_context = server_ssl_context
+        self.client_ssl_context = client_ssl_context
         self.loop = asyncio.get_event_loop()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
-    def create_server(self, proto, port, ssl_context=None):
+    def create_server(self, proto, port, ssl=True):
+        ssl_context = self.server_ssl_context if ssl else None
         coro = self.loop.create_server(proto, host='127.0.0.1', port=port, ssl=ssl_context)
         server = self.loop.run_until_complete(coro)
         self.servers.append(server)
@@ -35,6 +39,9 @@ class Application:
         self.condition.notify()
         self.condition.release()
         loop.run_forever()
+
+    def create_connection(self, hostname, port):
+        return Connection((hostname, port), self.client_ssl_context)
 
     def create_server_thread(self, proto):
         self.port = None
