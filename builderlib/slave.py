@@ -8,7 +8,6 @@ import getpass
 import string
 import socket
 import git
-import asyncio
 from . import messages_pb2
 from .protocol import *
 from .authentication import *
@@ -26,7 +25,8 @@ class Slave:
     logger = None
     busy = False
 
-    def __init__(self):
+    def __init__(self, task_factory):
+        self.task_factory = task_factory
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -44,7 +44,7 @@ class Slave:
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
             repo = git.Repo.clone_from(message.repo_address, self.repo_name)
-        asyncio.ensure_future(self.build(self.repo_name, message.branch, message.commit_hash,
+        self.task_factory(lambda: self.build(self.repo_name, message.branch, message.commit_hash,
             os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
         return create_result(messages_pb2.Result.OK)
 
@@ -77,7 +77,7 @@ class Slave:
 
 def main(name, certfile=None, keyfile=None, port=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile))
-    slave = Slave()
+    slave = Slave(app.create_task)
     auth_manager = AuthenticationManager(read_password(validate=True))
     messages_handler = MessagesHandler(messages_pb2.SlaveCommand, auth_manager)
     messages_handler.register_handler('build', slave.handle_build_request)

@@ -43,6 +43,9 @@ class Application:
     def create_connection(self, hostname, port):
         return Connection((hostname, port), self.client_ssl_context)
 
+    def create_task(self, func):
+        asyncio.ensure_future(func())
+
     def create_server_thread(self, proto):
         self.port = None
         t = threading.Thread(target=self.server_thread, args=(proto, ), daemon=True)
