@@ -35,9 +35,17 @@ class Master:
         token = None
         free = True
 
-        def __init__(self, address):
+        def __init__(self, address, password, connection_factory):
             self.logger = logging.getLogger("{}.{}".format(self.__class__.__name__, address))
             self.logger.debug('Constructor')
+            self.connection = connection_factory(address[0], address[1])
+            token_request = messages_pb2.SlaveCommand()
+            token_request.auth.password = password
+            response = self.connection.send(token_request)
+            if not response.token:
+                self.logger.error('Bad pass!')
+                raise "Bad pass"
+            self.token = response.token
 
         def set_free(self):
             self.logger.info('Finished build')
@@ -46,6 +54,29 @@ class Master:
         def set_busy(self):
             self.logger.info('Starting build')
             self.free = False
+
+        def send_build_request(self, branch, log_server_port, build_script):
+            message = messages_pb2.SlaveCommand()
+            message.token = self.token
+            message.build.repo_address = os.path.abspath('repo.git')
+            message.build.branch = branch
+            message.build.log_server_port = log_server_port
+            with open(build_script) as f:
+                message.build.script = f.read().encode('ascii')
+            return self.connection.send(message)
+
+    class Job:
+        log_protocol = None
+        script_path = None
+        port = None
+
+        def __init__(self, name, port, script_path, log_protocol):
+            self.name = name
+            self.port = port
+            self.script_path = script_path
+            self.log_protocol = log_protocol
+            self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
+            self.logger.debug('Constructor')
 
     def __init__(self, repo_address, server_factory, connection_factory):
         self.repo_address = repo_address
@@ -56,24 +87,11 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        message_to_slave = self.create_slave_build_request(message.branch, self.slaves[0].token)
-        log_protocol = self.jobs[0][3]
+        response = self.slaves[0].send_build_request(message.branch, self.jobs[0].port, self.jobs[0].script_path)
+        log_protocol = self.jobs[0].log_protocol
         log_protocol.set_open_callback(lambda: self.slaves[0].set_busy())
         log_protocol.set_close_callback(lambda: self.slaves[0].set_free())
-        connection = self.slaves[0].connection
-        connection.send(message_to_slave)
         return create_result(messages_pb2.Result.OK)
-
-    def create_slave_build_request(self, branch, token):
-        # TODO
-        message = messages_pb2.SlaveCommand()
-        message.token = token
-        message.build.repo_address = os.path.abspath('repo.git')
-        message.build.branch = branch
-        message.build.log_server_port = self.jobs[0][2]
-        with open(self.jobs[0][1]) as f:
-            message.build.script = f.read().encode('ascii')
-        return message
 
     def handle_job_adding(self, message, peername):
         error = self.validate_job_adding_message(message)
@@ -85,8 +103,8 @@ class Master:
         port = self.server_factory(lambda: log_protocol)
         if not port:
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
-        self.jobs.append(
-            (message.name, os.path.abspath(message.script_path), port, log_protocol))
+        job = self.Job(message.name, port, os.path.abspath(message.script_path), log_protocol)
+        self.jobs.append(job)
         return create_result(messages_pb2.Result.OK)
 
     def validate_job_adding_message(self, message):
@@ -103,22 +121,15 @@ class Master:
 
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)
+        self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
-            connection = self.connection_factory(message.address, message.port)
+            slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
         except socket.error as err:
             self.logger.error('Connection error: {}'.format(err))
             return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
-        self.logger.info('{}: Connecting slave: {}'.format(peername, address))
-        token_request = messages_pb2.SlaveCommand()
-        token_request.auth.password = message.password
-        response = connection.send(token_request)
-        if not response.token:
-            self.logger.error('Bad pass!')
-            return create_result(messages_pb2.Result.FAIL, error='Bad password')
-        slave = self.Slave((message.address, message.port))
-        slave.token = response.token
-        slave.connection = connection
-        slave.free = True
+        except:
+            self.logger.error('Connection error')
+            return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
