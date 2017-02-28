@@ -5,5 +5,6 @@ from .messages_pb2 import *
 from .authentication import *
 from .messages_handler import *
 from .protocol import *
+from .connection import *
 from .application import *
 

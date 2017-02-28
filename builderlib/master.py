@@ -30,6 +30,23 @@ class Master:
     server_factory = None
     logger = None
 
+    class Slave:
+        connection = None
+        token = None
+        free = True
+
+        def __init__(self, address):
+            self.logger = logging.getLogger("{}.{}".format(self.__class__.__name__, address))
+            self.logger.debug('Constructor')
+
+        def set_free(self):
+            self.logger.info('Finished build')
+            self.free = True
+
+        def set_busy(self):
+            self.logger.info('Starting build')
+            self.free = False
+
     def __init__(self, repo_address, server_factory, connection_factory):
         self.repo_address = repo_address
         self.server_factory = server_factory
@@ -39,24 +56,18 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        message_to_slave = self.create_slave_build_request(message.branch)
+        message_to_slave = self.create_slave_build_request(message.branch, self.slaves[0].token)
         log_protocol = self.jobs[0][3]
-        log_protocol.set_open_callback(lambda: self.set_busy(self.slaves[0]))
-        log_protocol.set_close_callback(lambda: self.set_free(self.slaves[0]))
-        connection = self.slaves[0][0]
+        log_protocol.set_open_callback(lambda: self.slaves[0].set_busy())
+        log_protocol.set_close_callback(lambda: self.slaves[0].set_free())
+        connection = self.slaves[0].connection
         connection.send(message_to_slave)
         return create_result(messages_pb2.Result.OK)
 
-    def set_free(self, slave):
-        slave[2] = True
-
-    def set_busy(self, slave):
-        slave[2] = False
-
-    def create_slave_build_request(self, branch):
+    def create_slave_build_request(self, branch, token):
         # TODO
         message = messages_pb2.SlaveCommand()
-        message.token = self.slaves[0][1]
+        message.token = token
         message.build.repo_address = os.path.abspath('repo.git')
         message.build.branch = branch
         message.build.log_server_port = self.jobs[0][2]
@@ -104,7 +115,11 @@ class Master:
         if not response.token:
             self.logger.error('Bad pass!')
             return create_result(messages_pb2.Result.FAIL, error='Bad password')
-        self.slaves.append((connection, response.token, True))
+        slave = self.Slave((message.address, message.port))
+        slave.token = response.token
+        slave.connection = connection
+        slave.free = True
+        self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
 
