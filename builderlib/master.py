@@ -40,9 +40,18 @@ class Master:
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
         message_to_slave = self.create_slave_build_request(message.branch)
+        log_protocol = self.jobs[0][3]
+        log_protocol.set_open_callback(lambda: self.set_busy(self.slaves[0]))
+        log_protocol.set_close_callback(lambda: self.set_free(self.slaves[0]))
         connection = self.slaves[0][0]
         connection.send(message_to_slave)
         return create_result(messages_pb2.Result.OK)
+
+    def set_free(self, slave):
+        slave[2] = True
+
+    def set_busy(self, slave):
+        slave[2] = False
 
     def create_slave_build_request(self, branch):
         # TODO
