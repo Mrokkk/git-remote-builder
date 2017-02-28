@@ -78,6 +78,11 @@ class Master:
             self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
             self.logger.debug('Constructor')
 
+        def run_in_slave(self, slave, branch):
+            self.log_protocol.set_open_callback(lambda: slave.set_busy())
+            self.log_protocol.set_close_callback(lambda: slave.set_free())
+            return slave.send_build_request(branch, self.port, self.script_path)
+
     def __init__(self, repo_address, server_factory, connection_factory):
         self.repo_address = repo_address
         self.server_factory = server_factory
@@ -87,10 +92,7 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        response = self.slaves[0].send_build_request(message.branch, self.jobs[0].port, self.jobs[0].script_path)
-        log_protocol = self.jobs[0].log_protocol
-        log_protocol.set_open_callback(lambda: self.slaves[0].set_busy())
-        log_protocol.set_close_callback(lambda: self.slaves[0].set_free())
+        self.jobs[0].run_in_slave(self.slaves[0], message.branch)
         return create_result(messages_pb2.Result.OK)
 
     def handle_job_adding(self, message, peername):
