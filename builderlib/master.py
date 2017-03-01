@@ -140,7 +140,7 @@ class Master:
         try:
             slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
         except (RuntimeError, socket.error) as exc:
-            self.error('Error connecting to slave: {}'.format(exc))
+            return self.error('Error connecting to slave: {}'.format(exc))
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
