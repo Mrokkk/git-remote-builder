@@ -80,14 +80,26 @@ def read_and_send(connection, token):
         msg.connect_slave.password = read_password()
     elif command == 'create':
         msg.create_job.name = args[0]
-        with open(args[1], 'r') as f:
-            msg.create_job.script = f.read().encode('utf-8')
+        try:
+            with open(args[1], 'r') as f:
+                msg.create_job.script = f.read().encode('utf-8')
+        except OSError as exc:
+            print('Error: {}'.format(exc))
+            return
     else:
         return
-    response = connection.send(msg)
-    print('Server sent: {}'.format(MessageToString(response, as_one_line=True)))
+    try:
+        response = connection.send(msg)
+    except RuntimeError as exc:
+        print('RuntimeError: {}'.format(exc))
+        return
+    except Exception as exc:
+        print('Unexpected error: {}'.format(exc))
+        return
+    if response.code == messages_pb2.Result.FAIL:
+        print('Server returned: {}'.format(response.error))
+        return
 
 
 if __name__ == '__main__':
     main()
-
