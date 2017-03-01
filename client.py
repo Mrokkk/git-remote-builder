@@ -80,7 +80,8 @@ def read_and_send(connection, token):
         msg.connect_slave.password = read_password()
     elif command == 'create':
         msg.create_job.name = args[0]
-        msg.create_job.script_path = args[1]
+        with open(args[1], 'r') as f:
+            msg.create_job.script = f.read().encode('utf-8')
     else:
         return
     response = connection.send(msg)

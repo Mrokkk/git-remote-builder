@@ -17,7 +17,7 @@ from .protocol import *
 from .authentication import *
 from .messages_handler import *
 from .application import *
-from .log_reader import LogProtocol
+from .log_protocol import LogProtocol
 from google.protobuf.text_format import MessageToString
 
 
@@ -56,25 +56,24 @@ class Master:
             self.logger.info('Starting build')
             self.free = False
 
-        def send_build_request(self, branch, log_server_port, script_file):
+        def send_build_request(self, branch, log_server_port, script):
             message = messages_pb2.SlaveCommand()
             message.token = self.token
             message.build.repo_address = os.path.abspath('repo.git')
             message.build.branch = branch
             message.build.log_server_port = log_server_port
-            message.build.script = script_file.read().encode('utf-8')
-            script_file.seek(0)
+            message.build.script = script
             self.connection.send(message)
 
     class Job:
         log_protocol = None
-        script_file = None
+        script = None
         port = None
 
-        def __init__(self, name, port, script_path, log_protocol):
+        def __init__(self, name, port, script, log_protocol):
             self.name = name
             self.port = port
-            self.script_file = open(script_path, 'r')
+            self.script = script
             self.log_protocol = log_protocol
             self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
             self.logger.debug('Constructor')
@@ -86,7 +85,7 @@ class Master:
         def run_in_slave(self, slave, branch):
             self.log_protocol.set_open_callback(lambda: slave.set_busy())
             self.log_protocol.set_close_callback(lambda: slave.set_free())
-            slave.send_build_request(branch, self.port, self.script_file)
+            slave.send_build_request(branch, self.port, self.script)
             self.logger.info('Sent build command to {}'.format(slave.address))
 
     def __init__(self, repo_address, server_factory, connection_factory):
@@ -115,24 +114,21 @@ class Master:
             self.validate_job_adding_message(message)
         except RuntimeError as exc:
             return self.error('Error adding job: {}'.format(exc))
-        self.logger.info('Adding job: {} with script {}'.format(message.name,
-            message.script_path))
+        self.logger.info('Adding job: {}'.format(message.name))
         log_protocol = LogProtocol(message.name)
         try:
             port = self.server_factory(lambda: log_protocol)
         except Exception as exc:
             return self.error('Cannot start log server: {}'.format(exc))
-        job = self.Job(message.name, port, os.path.abspath(message.script_path), log_protocol)
+        job = self.Job(message.name, port, message.script, log_protocol)
         self.jobs.append(job)
         return create_result(messages_pb2.Result.OK)
 
     def validate_job_adding_message(self, message):
         if not message.name:
             raise RuntimeError('No job name')
-        if not message.script_path:
+        if not message.script:
             raise RuntimeError('No script')
-        if not os.path.exists(message.script_path):
-            raise RuntimeError('No such script')
 
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)

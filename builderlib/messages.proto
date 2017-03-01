@@ -19,7 +19,7 @@ message MasterCommand {
 
     message CreateJob {
         string name = 1;
-        string script_path = 2;
+        bytes script = 2;
     }
 
     string token = 1;
