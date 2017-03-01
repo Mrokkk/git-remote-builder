@@ -18,6 +18,13 @@ class Connection:
     def send(self, message):
         self.sock.sendall(message.SerializeToString())
         data = self.sock.recv(1024)
+        if not data:
+            raise RuntimeError("Server closed connection!")
         result = Result()
-        result.ParseFromString(data)
+        try:
+            result.ParseFromString(data)
+        except:
+            raise RuntimeError("Bad response!")
+        if result.code == Result.FAIL:
+            raise RuntimeError("Fail on server side!")
         return result

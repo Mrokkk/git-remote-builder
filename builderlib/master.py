@@ -99,8 +99,12 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        self.jobs[0].run_in_slave(self.slaves[0], message.branch)
-        return create_result(messages_pb2.Result.OK)
+        try:
+            self.jobs[0].run_in_slave(self.slaves[0], message.branch)
+            return create_result(messages_pb2.Result.OK)
+        except RuntimeError as exc:
+            self.logger.error('Slave connection: {}'.format(exc.args[0]))
+            return create_result(messages_pb2.Result.FAIL, error=exc.args[0])
 
     def handle_job_adding(self, message, peername):
         error = self.validate_job_adding_message(message)
