@@ -96,30 +96,32 @@ class Master:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
+    def error(self, error):
+        self.logger.error(error)
+        return create_result(messages_pb2.Result.FAIL, error=error)
+
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
         try:
             self.jobs[0].run_in_slave(self.slaves[0], message.branch)
             return create_result(messages_pb2.Result.OK)
         except RuntimeError as exc:
-            self.logger.error('Error sending build request: {}'.format(exc))
-            return create_result(messages_pb2.Result.FAIL, error='Error sending build request: {}'.format(exc))
+            return self.error('Error sending build request: {}'.format(exc))
         except Exception as exc:
-            self.logger.critical('Unexpected error: {}'.format(exc))
+            return self.error('Unexpected error: {}'.format(exc))
 
     def handle_job_adding(self, message, peername):
         try:
             self.validate_job_adding_message(message)
         except RuntimeError as exc:
-            self.logger.error('Error adding job: {}'.format(exc))
-            return create_result(messages_pb2.Result.FAIL, error='Error adding job: {}'.format(exc))
+            return self.error('Error adding job: {}'.format(exc))
         self.logger.info('Adding job: {} with script {}'.format(message.name,
             message.script_path))
         log_protocol = LogProtocol(message.name)
-        port = self.server_factory(lambda: log_protocol)
-        if not port:
-            self.logger.critical('Cannot start log server')
-            return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
+        try:
+            port = self.server_factory(lambda: log_protocol)
+        except Exception as exc:
+            return self.error('Cannot start log server: {}'.format(exc))
         job = self.Job(message.name, port, os.path.abspath(message.script_path), log_protocol)
         self.jobs.append(job)
         return create_result(messages_pb2.Result.OK)
@@ -138,8 +140,7 @@ class Master:
         try:
             slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
         except (RuntimeError, socket.error) as exc:
-            self.logger.error('Error connecting to slave: {}'.format(exc))
-            return create_result(messages_pb2.Result.FAIL, error='Error connecting to slave: {}'.format(exc))
+            self.error('Error connecting to slave: {}'.format(exc))
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
