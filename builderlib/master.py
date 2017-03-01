@@ -34,10 +34,12 @@ class Master:
         connection = None
         token = None
         free = True
+        address = None
 
         def __init__(self, address, password, connection_factory):
             self.logger = logging.getLogger("{}.{}".format(self.__class__.__name__, address))
             self.logger.debug('Constructor')
+            self.address = address
             self.connection = connection_factory(address[0], address[1])
             token_request = messages_pb2.SlaveCommand()
             token_request.auth.password = password
@@ -55,33 +57,38 @@ class Master:
             self.logger.info('Starting build')
             self.free = False
 
-        def send_build_request(self, branch, log_server_port, build_script):
+        def send_build_request(self, branch, log_server_port, script_file):
             message = messages_pb2.SlaveCommand()
             message.token = self.token
             message.build.repo_address = os.path.abspath('repo.git')
             message.build.branch = branch
             message.build.log_server_port = log_server_port
-            with open(build_script) as f:
-                message.build.script = f.read().encode('ascii')
+            message.build.script = script_file.read().encode('utf-8')
+            script_file.seek(0)
             return self.connection.send(message)
 
     class Job:
         log_protocol = None
-        script_path = None
+        script_file = None
         port = None
 
         def __init__(self, name, port, script_path, log_protocol):
             self.name = name
             self.port = port
-            self.script_path = script_path
+            self.script_file = open(script_path, 'r')
             self.log_protocol = log_protocol
             self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
             self.logger.debug('Constructor')
 
+        def __del__(self):
+            self.logger.debug('Destructor')
+            self.script_file.close()
+
         def run_in_slave(self, slave, branch):
             self.log_protocol.set_open_callback(lambda: slave.set_busy())
             self.log_protocol.set_close_callback(lambda: slave.set_free())
-            return slave.send_build_request(branch, self.port, self.script_path)
+            slave.send_build_request(branch, self.port, self.script_file)
+            self.logger.info('Sent build command to {}'.format(slave.address))
 
     def __init__(self, repo_address, server_factory, connection_factory):
         self.repo_address = repo_address
