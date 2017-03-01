@@ -18,6 +18,7 @@ def main():
     branch = os.path.basename(args[2])
     print('Adding {}/{} to the build queue...'.format(branch, commit))
     msg = messages_pb2.MasterCommand()
+    msg.token = $TOKEN
     msg.build.commit_hash = commit
     msg.build.branch = branch
     sock.send(msg.SerializeToString())

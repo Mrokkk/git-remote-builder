@@ -18,8 +18,8 @@ class MessagesHandler:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
-    def register_handler(self, message_name, handler, require_auth=True):
-        self.callbacks[message_name] = (handler, require_auth)
+    def register_handler(self, message_name, handler):
+        self.callbacks[message_name] = handler
 
     def handle(self, data, peername):
         message = self.message_type()
@@ -35,15 +35,13 @@ class MessagesHandler:
                 return None
             return resp.SerializeToString()
         try:
-            callback = self.callbacks[message.WhichOneof('command')][0]
-            require_auth = self.callbacks[message.WhichOneof('command')][1]
+            callback = self.callbacks[message.WhichOneof('command')]
         except:
             self.logger.error('No callback for that message: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
-        if require_auth:
-            if not self.auth_handler.authentication_callback(message, peername):
-                return None
+        if not self.auth_handler.authentication_callback(message, peername):
+            return None
         response = callback(eval('message.{}'.format(message.WhichOneof('command'))), peername)
         if not response:
             self.logger.warning('Callback returned None')

@@ -13,7 +13,7 @@ class AuthenticationManager:
         self._password = password
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def __request_token(self, password):
+    def request_token(self, password):
         if password.strip() == self._password.strip():
             token = secrets.token_hex(16)
             self.tokens.append(token)
@@ -28,7 +28,7 @@ class AuthenticationManager:
 
     def handle_authentication_request(self, message, peername):
         response = messages_pb2.Result()
-        token = self.__request_token(message.password)
+        token = self.request_token(message.password)
         if token:
             self.logger.info('Successful authentication')
             response.token = token

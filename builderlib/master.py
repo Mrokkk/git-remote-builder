@@ -141,12 +141,12 @@ class Master:
         return create_result(messages_pb2.Result.OK)
 
 
-def create_post_receive_hook(repo, builderlib_root, port):
+def create_post_receive_hook(repo, builderlib_root, port, token):
     hook_path = os.path.join(repo.working_dir, 'hooks/post-receive')
     template_string = open('../builderlib/post-receive.py', 'r').read()
     post_receive_hook = open(hook_path, 'w')
     post_receive_hook.write(string.Template(template_string)
-        .substitute(PATH='\'' + builderlib_root + '\'', PORT=port))
+        .substitute(PATH='\'' + builderlib_root + '\'', PORT=port, TOKEN='\'' + token + '\''))
     post_receive_hook.close()
     os.chmod(hook_path, 0o700)
 
@@ -156,15 +156,17 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = git.Repo.init(name + '.git', bare=True)
     master = Master(repo.working_dir, app.create_server_thread, app.create_connection)
-    auth_manager = AuthenticationManager(read_password(validate=True))
+    password = read_password(validate=True)
+    auth_manager = AuthenticationManager(password)
     messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
-    messages_handler.register_handler('build', master.handle_build_request, require_auth=False)
+    messages_handler.register_handler('build', master.handle_build_request)
     messages_handler.register_handler('connect_slave', master.handle_connect_slave)
     messages_handler.register_handler('create_job', master.handle_job_adding)
     protocol = Protocol(messages_handler.handle)
     app.create_server(lambda: protocol, port)
+    git_hook_token = auth_manager.request_token(password)
     git_hook_port = app.create_server(lambda: protocol, 0, ssl=False)
-    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port)
+    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port, git_hook_token)
     try:
         app.run()
     except KeyboardInterrupt:
