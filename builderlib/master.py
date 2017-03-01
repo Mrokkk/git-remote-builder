@@ -45,8 +45,7 @@ class Master:
             token_request.auth.password = password
             response = self.connection.send(token_request)
             if not response.token:
-                self.logger.error('Bad pass!')
-                raise "Bad pass"
+                raise RuntimeError('Bad password')
             self.token = response.token
 
         def set_free(self):
@@ -65,7 +64,7 @@ class Master:
             message.build.log_server_port = log_server_port
             message.build.script = script_file.read().encode('utf-8')
             script_file.seek(0)
-            return self.connection.send(message)
+            self.connection.send(message)
 
     class Job:
         log_protocol = None
@@ -103,18 +102,23 @@ class Master:
             self.jobs[0].run_in_slave(self.slaves[0], message.branch)
             return create_result(messages_pb2.Result.OK)
         except RuntimeError as exc:
-            self.logger.error('Slave connection: {}'.format(exc.args[0]))
-            return create_result(messages_pb2.Result.FAIL, error=exc.args[0])
+            self.logger.error('Error sending build request: {}'.format(exc))
+            return create_result(messages_pb2.Result.FAIL, error='Error sending build request: {}'.format(exc))
+        except Exception as exc:
+            self.logger.critical('Unexpected error: {}'.format(exc))
 
     def handle_job_adding(self, message, peername):
-        error = self.validate_job_adding_message(message)
-        if error:
-            return error
+        try:
+            self.validate_job_adding_message(message)
+        except RuntimeError as exc:
+            self.logger.error('Error adding job: {}'.format(exc))
+            return create_result(messages_pb2.Result.FAIL, error='Error adding job: {}'.format(exc))
         self.logger.info('Adding job: {} with script {}'.format(message.name,
             message.script_path))
         log_protocol = LogProtocol(message.name)
         port = self.server_factory(lambda: log_protocol)
         if not port:
+            self.logger.critical('Cannot start log server')
             return create_result(messages_pb2.Result.FAIL, error='Cannot start log server')
         job = self.Job(message.name, port, os.path.abspath(message.script_path), log_protocol)
         self.jobs.append(job)
@@ -122,27 +126,20 @@ class Master:
 
     def validate_job_adding_message(self, message):
         if not message.name:
-            self.logger.warning('No job name in the message')
-            return create_result(messages_pb2.Result.FAIL, error='No job')
+            raise RuntimeError('No job name')
         if not message.script_path:
-            self.logger.warning('No script path in the message')
-            return create_result(messages_pb2.Result.FAIL, error='No script')
+            raise RuntimeError('No script')
         if not os.path.exists(message.script_path):
-            self.logger.warning('Script file does not exist!')
-            return create_result(messages_pb2.Result.FAIL, error='No such script')
-        return None
+            raise RuntimeError('No such script')
 
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
             slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
-        except socket.error as err:
-            self.logger.error('Connection error: {}'.format(err))
-            return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
-        except:
-            self.logger.error('Connection error')
-            return create_result(messages_pb2.Result.FAIL, error='Cannot connect to slave')
+        except (RuntimeError, socket.error) as exc:
+            self.logger.error('Error connecting to slave: {}'.format(exc))
+            return create_result(messages_pb2.Result.FAIL, error='Error connecting to slave: {}'.format(exc))
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
