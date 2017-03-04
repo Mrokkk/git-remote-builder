@@ -89,10 +89,11 @@ class Master:
             slave.send_build_request(branch, self.port, self.script)
             self.logger.info('Sent build command to {}'.format(slave.address))
 
-    def __init__(self, repo_address, server_factory, connection_factory):
+    def __init__(self, repo_address, server_factory, connection_factory, task_factory):
         self.repo_address = repo_address
         self.server_factory = server_factory
         self.connection_factory = connection_factory
+        self.task_factory = task_factory
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -103,10 +104,10 @@ class Master:
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
         for job in self.jobs:
-            self.run_job(job, message.branch)
+            self.task_factory(lambda: self.run_job(job, message.branch))
         return create_result(messages_pb2.Result.OK)
 
-    def run_job(self, job, branch):
+    async def run_job(self, job, branch):
         while True:
             for slave in self.slaves:
                 if not slave.free:
@@ -166,7 +167,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = git.Repo.init(name + '.git', bare=True)
-    master = Master(repo.working_dir, app.create_server_thread, app.create_connection)
+    master = Master(repo.working_dir, app.create_server_thread, app.create_connection, app.create_task)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
