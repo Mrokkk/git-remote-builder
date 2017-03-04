@@ -66,6 +66,7 @@ class Master:
             self.connection.send(message)
 
     class Job:
+        name = None
         log_protocol = None
         script = None
         port = None
@@ -101,13 +102,23 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        try:
-            self.jobs[0].run_in_slave(self.slaves[0], message.branch)
-            return create_result(messages_pb2.Result.OK)
-        except RuntimeError as exc:
-            return self.error('Error sending build request: {}'.format(exc))
-        except Exception as exc:
-            return self.error('Unexpected error: {}'.format(exc))
+        for job in self.jobs:
+            self.run_job(job, message.branch)
+        return create_result(messages_pb2.Result.OK)
+
+    def run_job(self, job, branch):
+        while True:
+            for slave in self.slaves:
+                if not slave.free:
+                    continue
+                try:
+                    job.run_in_slave(slave, branch)
+                    return
+                except RuntimeError as exc:
+                    return self.error('Error sending build request: {}'.format(exc))
+                except Exception as exc:
+                    return self.error('Unexpected error: {}'.format(exc))
+            time.sleep(0.5)
 
     def handle_job_adding(self, message, peername):
         try:
