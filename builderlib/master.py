@@ -81,6 +81,7 @@ class Master:
             self.script_file.close()
 
         def run_in_slave(self, slave, branch):
+            self.logger.info('Starting job {}'.format(self.name))
             self.log_protocol.set_open_callback(lambda: slave.set_busy())
             self.log_protocol.set_close_callback(lambda: slave.set_free())
             slave.send_build_request(branch, self.port, self.script)
@@ -99,12 +100,16 @@ class Master:
         return create_result(messages_pb2.Result.FAIL, error=error)
 
     def handle_build_request(self, message, peername):
+        # TODO: add to the queue
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        for job in self.jobs:
-            self.task_factory(lambda: self.run_job(job, message.branch))
+        self.task_factory(lambda: self.build(message.branch))
         return create_result(messages_pb2.Result.OK)
 
-    async def run_job(self, job, branch):
+    def build(self, branch):
+        for job in self.jobs:
+            self.run_job(job, branch)
+
+    def run_job(self, job, branch):
         while True:
             for slave in self.slaves:
                 if not slave.free:

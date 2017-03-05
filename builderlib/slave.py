@@ -51,6 +51,7 @@ class Slave:
         with open('build.sh', 'w') as script_file:
             script_file.write(message.script.decode('ascii'))
         os.chmod('build.sh', 0o700)
+        self.busy = True
         self.task_factory(lambda: self.build(self.repo_name, message.repo_address, message.branch,
             message.commit_hash, os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
         return create_result(messages_pb2.Result.OK)
@@ -67,12 +68,11 @@ class Slave:
         self.logger.error(error)
         return create_result(messages_pb2.Result.FAIL, error=error)
 
-    async def build(self, repo_name, repo_address, branch, commit, build_script, address):
+    def build(self, repo_name, repo_address, branch, commit, build_script, address):
         if not os.path.exists(repo_name):
             clone_repo(repo_address, branch)
         checkout_branch(repo_name, branch)
-        self.logger.info('Writing to {}'.format(address))
-        self.busy = True
+        self.logger.info('Writing build of {} to {}'.format(branch, address))
         try:
             connection = self.connection_factory(address[0], address[1])
         except Exception as exc:
