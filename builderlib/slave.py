@@ -2,9 +2,7 @@
 
 import sys
 import os
-import ssl
 import logging
-import getpass
 import string
 import socket
 import git
@@ -33,14 +31,14 @@ class Slave:
     def handle_build_request(self, message, peername):
         if self.busy:
             return create_result(messages_pb2.Result.BUSY)
-        error = self.validate_build_message(message)
-        if error:
-            return error
+        try:
+            self.validate_build_message(message)
+        except RuntimeError as exc:
+            return self.error('Error validating message: {}'.format(exc))
         self.logger.info('Received new commit {}'.format(message.commit_hash))
         self.repo_name = os.path.basename(message.repo_address)
-        script_file = open('build.sh', 'w')
-        script_file.write(message.script.decode('ascii'))
-        script_file.close()
+        with open('build.sh', 'w') as script_file:
+            script_file.write(message.script.decode('ascii'))
         os.chmod('build.sh', 0o700)
         if not os.path.exists(self.repo_name):
             repo = git.Repo.clone_from(message.repo_address, self.repo_name)
@@ -50,15 +48,15 @@ class Slave:
 
     def validate_build_message(self, message):
         if not message.repo_address:
-            self.logger.warning('No repo address')
-            return create_result(messages_pb2.Result.FAIL, error='No repo')
+            raise RuntimeError('No repo address')
         if not message.script:
-            self.logger.warning('No script')
-            return create_result(messages_pb2.Result.FAIL, error='No script')
+            raise RuntimeError('No script')
         if not message.branch:
-            self.logger.warning('No branch')
-            return create_result(messages_pb2.Result.FAIL, error='No branch')
-        return None
+            raise RuntimeError('No branch')
+
+    def error(self, error):
+        self.logger.error(error)
+        return create_result(messages_pb2.Result.FAIL, error=error)
 
     async def build(self, repo_name, branch, commit, build_script, address):
         self.logger.info('Writing to {}'.format(address))
