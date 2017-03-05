@@ -15,6 +15,14 @@ class Connection:
         self.sock.connect(address)
         self.sock.settimeout(10)
 
+    def __del__(self):
+        if self.sock:
+            self.sock.close()
+
+    def file(self, mode):
+        self.sock.setblocking(True)
+        return self.sock.makefile(mode)
+
     def send(self, message):
         self.sock.sendall(message.SerializeToString())
         data = self.sock.recv(1024)
