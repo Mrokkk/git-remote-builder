@@ -2,13 +2,10 @@
 
 import sys
 import os
-import ssl
 import logging
 import string
 import socket
-import git
 import subprocess
-import threading
 import time
 from . import messages_pb2
 from .message_helpers import create_result
@@ -154,7 +151,7 @@ class Master:
 
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
-    hook_path = os.path.join(repo.working_dir, 'hooks/post-receive')
+    hook_path = os.path.join(repo, 'hooks/post-receive')
     template_string = open('../builderlib/post-receive.py', 'r').read()
     post_receive_hook = open(hook_path, 'w')
     post_receive_hook.write(string.Template(template_string)
@@ -163,11 +160,20 @@ def create_post_receive_hook(repo, builderlib_root, port, token):
     os.chmod(hook_path, 0o700)
 
 
+def create_bare_repo(name):
+    repo_path = os.path.join(os.getcwd(), name + '.git')
+    if not os.path.exists(repo_path):
+        os.mkdir(repo_path)
+    proc = subprocess.Popen(['git', 'init', '--bare'], cwd=repo_path)
+    proc.wait()
+    return repo_path
+
+
 def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
-    repo = git.Repo.init(name + '.git', bare=True)
-    master = Master(repo.working_dir, app.create_server_thread, app.create_connection, app.create_task)
+    repo = create_bare_repo(name)
+    master = Master(repo, app.create_server_thread, app.create_connection, app.create_task)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
