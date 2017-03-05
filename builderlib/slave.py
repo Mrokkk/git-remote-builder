@@ -5,7 +5,6 @@ import os
 import logging
 import string
 import socket
-import git
 from . import messages_pb2
 from .protocol import *
 from .authentication import *
@@ -15,6 +14,19 @@ from .utils import *
 from .message_helpers import *
 from google.protobuf.text_format import MessageToString
 from subprocess import call, Popen
+
+
+def clone_repo(repo_address, branch=None):
+    proc = Popen(['git', 'clone', repo_address])
+    proc.wait()
+
+
+def checkout_branch(path, branch):
+    proc = Popen(['git', 'fetch', 'origin', branch], cwd=path)
+    proc.wait()
+    proc = Popen(['git', 'checkout', 'origin/' + branch], cwd=path)
+    proc.wait()
+    proc = Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=path)
 
 
 class Slave:
@@ -36,14 +48,12 @@ class Slave:
         except RuntimeError as exc:
             return self.error('Error validating message: {}'.format(exc))
         self.logger.info('Received new commit {}'.format(message.commit_hash))
-        self.repo_name = os.path.basename(message.repo_address)
+        self.repo_name = os.path.splitext(os.path.basename(message.repo_address))[0]
         with open('build.sh', 'w') as script_file:
             script_file.write(message.script.decode('ascii'))
         os.chmod('build.sh', 0o700)
-        if not os.path.exists(self.repo_name):
-            repo = git.Repo.clone_from(message.repo_address, self.repo_name)
-        self.task_factory(lambda: self.build(self.repo_name, message.branch, message.commit_hash,
-            os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
+        self.task_factory(lambda: self.build(self.repo_name, message.repo_address, message.branch,
+            message.commit_hash, os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
         return create_result(messages_pb2.Result.OK)
 
     def validate_build_message(self, message):
@@ -58,7 +68,10 @@ class Slave:
         self.logger.error(error)
         return create_result(messages_pb2.Result.FAIL, error=error)
 
-    async def build(self, repo_name, branch, commit, build_script, address):
+    async def build(self, repo_name, repo_address, branch, commit, build_script, address):
+        if not os.path.exists(repo_name):
+            clone_repo(repo_address, branch)
+        checkout_branch(repo_name, branch)
         self.logger.info('Writing to {}'.format(address))
         self.busy = True
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
