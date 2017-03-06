@@ -6,7 +6,6 @@ import logging
 import string
 import socket
 import subprocess
-import time
 from . import messages_pb2
 from .message_helpers import create_result
 from .utils import *
@@ -14,7 +13,8 @@ from .protocol import *
 from .authentication import *
 from .messages_handler import *
 from .application import *
-from .log_protocol import LogProtocol
+from .log_protocol import *
+from .build_dispatcher import *
 from google.protobuf.text_format import MessageToString
 
 
@@ -87,11 +87,12 @@ class Master:
             slave.send_build_request(branch, self.port, self.script)
             self.logger.info('Sent build command to {}'.format(slave.address))
 
-    def __init__(self, repo_address, server_factory, connection_factory, task_factory):
+    def __init__(self, repo_address, server_factory, connection_factory, task_factory, build_dispatcher):
         self.repo_address = repo_address
         self.server_factory = server_factory
         self.connection_factory = connection_factory
         self.task_factory = task_factory
+        self.build_dispatcher = build_dispatcher
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -100,28 +101,9 @@ class Master:
         return create_result(messages_pb2.Result.FAIL, error=error)
 
     def handle_build_request(self, message, peername):
-        # TODO: add to the queue
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        self.task_factory(lambda: self.build(message.branch))
+        self.build_dispatcher.push_build(message.branch, self.slaves, self.jobs)
         return create_result(messages_pb2.Result.OK)
-
-    def build(self, branch):
-        for job in self.jobs:
-            self.run_job(job, branch)
-
-    def run_job(self, job, branch):
-        while True:
-            for slave in self.slaves:
-                if not slave.free:
-                    continue
-                try:
-                    job.run_in_slave(slave, branch)
-                    return
-                except RuntimeError as exc:
-                    return self.error('Error sending build request: {}'.format(exc))
-                except Exception as exc:
-                    return self.error('Unexpected error: {}'.format(exc))
-            time.sleep(0.5)
 
     def handle_job_adding(self, message, peername):
         try:
@@ -178,7 +160,9 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = create_bare_repo(name)
-    master = Master(repo, app.create_server_thread, app.create_connection, app.create_task)
+    build_dispatcher = BuildDispatcher()
+    build_dispatcher.start()
+    master = Master(repo, app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)

@@ -34,8 +34,8 @@ class Application:
         loop = asyncio.new_event_loop()
         coro = loop.create_server(proto, host='127.0.0.1', port=0)
         server = loop.run_until_complete(coro)
-        self.port = server.sockets[0].getsockname()[1]
         self.condition.acquire()
+        self.port = server.sockets[0].getsockname()[1]
         self.condition.notify()
         self.condition.release()
         loop.run_forever()
