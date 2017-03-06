@@ -33,9 +33,11 @@ class BuildDispatcher(threading.Thread):
                     time.sleep(1)
                     return
                 except RuntimeError as exc:
-                    return self.error('Error sending build request: {}'.format(exc))
+                    self.logger.error('Error sending build request: {}'.format(exc))
+                    return
                 except Exception as exc:
-                    return self.error('Unexpected error: {}'.format(exc))
+                    self.logger.error('Unexpected error: {}'.format(exc))
+                    return
             time.sleep(0.5)
 
     def run_in_slave(self, job, slave, branch):
