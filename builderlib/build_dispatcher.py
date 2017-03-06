@@ -10,7 +10,8 @@ class BuildDispatcher(threading.Thread):
     queue = None
     logger = None
 
-    def __init__(self):
+    def __init__(self, repo_address):
+        self.repo_address = repo_address
         self.logger = logging.getLogger(self.__class__.__name__)
         self.queue = queue.Queue()
         super().__init__(target=self.main_loop, args=(self.queue, ), daemon=True)
@@ -41,7 +42,7 @@ class BuildDispatcher(threading.Thread):
         self.logger.info('Starting job {}'.format(job.name))
         job.log_protocol.set_open_callback(lambda: slave.set_busy())
         job.log_protocol.set_close_callback(lambda: slave.set_free())
-        slave.send_build_request(branch, job.port, job.script)
+        slave.send_build_request(self.repo_address, branch, job.port, job.script)
         self.logger.info('Sent build command to {}'.format(slave.address))
 
     def push_build(self, branch, slaves, job):

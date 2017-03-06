@@ -9,9 +9,10 @@ from .connection import *
 class Application:
 
     loop = None
+    server_ssl_context = None
+    client_ssl_context = None
     servers = []
     logger = None
-    threads = []
     condition = threading.Condition()
     port = None
 
@@ -48,9 +49,7 @@ class Application:
 
     def create_server_thread(self, proto):
         self.port = None
-        t = threading.Thread(target=self._server_thread, args=(proto, ), daemon=True)
-        t.start()
-        self.threads.append(t)
+        threading.Thread(target=self._server_thread, args=(proto, ), daemon=True).start()
         self.condition.acquire()
         self.condition.wait(timeout=10)
         self.condition.release()

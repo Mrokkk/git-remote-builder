@@ -53,10 +53,10 @@ class Master:
             self.logger.info('Starting build')
             self.free = False
 
-        def send_build_request(self, branch, log_server_port, script):
+        def send_build_request(self, repo_address, branch, log_server_port, script):
             message = messages_pb2.SlaveCommand()
             message.token = self.token
-            message.build.repo_address = os.path.abspath('repo.git')
+            message.build.repo_address = os.path.abspath(repo_address)
             message.build.branch = branch
             message.build.log_server_port = log_server_port
             message.build.script = script
@@ -153,7 +153,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = create_bare_repo(name)
-    build_dispatcher = BuildDispatcher()
+    build_dispatcher = BuildDispatcher(repo)
     build_dispatcher.start()
     master = Master(repo, app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
     password = read_password(validate=True)
