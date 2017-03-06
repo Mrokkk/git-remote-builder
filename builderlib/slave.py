@@ -11,7 +11,7 @@ from .application import *
 from .utils import *
 from .message_helpers import *
 from google.protobuf.text_format import MessageToString
-from subprocess import call, Popen
+from subprocess import call, Popen, DEVNULL, PIPE
 
 
 def clone_repo(repo_address, branch=None):
@@ -19,12 +19,13 @@ def clone_repo(repo_address, branch=None):
     proc.wait()
 
 
-def checkout_branch(path, branch):
-    proc = Popen(['git', 'fetch', 'origin', branch], cwd=path)
-    proc.wait()
-    proc = Popen(['git', 'checkout', 'origin/' + branch], cwd=path)
-    proc.wait()
-    proc = Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=path)
+def checkout_branch(path, branch, logger):
+    proc = Popen(['git', 'fetch', 'origin', branch], cwd=path, stdout=DEVNULL, stderr=DEVNULL)
+    errors = proc.communicate()
+    proc = Popen(['git', 'checkout', 'origin/' + branch], cwd=path, stdout=DEVNULL, stderr=DEVNULL)
+    errors = proc.communicate()
+    proc = Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=path, stdout=DEVNULL, stderr=DEVNULL)
+    errors = proc.communicate()
 
 
 class Slave:
@@ -71,7 +72,7 @@ class Slave:
     def build(self, repo_name, repo_address, branch, commit, build_script, address):
         if not os.path.exists(repo_name):
             clone_repo(repo_address, branch)
-        checkout_branch(repo_name, branch)
+        checkout_branch(repo_name, branch, self.logger)
         self.logger.info('Writing build of {} to {}'.format(branch, address))
         try:
             connection = self.connection_factory(address[0], address[1])
