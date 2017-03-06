@@ -80,13 +80,6 @@ class Master:
             self.logger.debug('Destructor')
             self.script_file.close()
 
-        def run_in_slave(self, slave, branch):
-            self.logger.info('Starting job {}'.format(self.name))
-            self.log_protocol.set_open_callback(lambda: slave.set_busy())
-            self.log_protocol.set_close_callback(lambda: slave.set_free())
-            slave.send_build_request(branch, self.port, self.script)
-            self.logger.info('Sent build command to {}'.format(slave.address))
-
     def __init__(self, repo_address, server_factory, connection_factory, task_factory, build_dispatcher):
         self.repo_address = repo_address
         self.server_factory = server_factory

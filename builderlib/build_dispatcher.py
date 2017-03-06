@@ -28,7 +28,7 @@ class BuildDispatcher(threading.Thread):
                 if not slave.free:
                     continue
                 try:
-                    job.run_in_slave(slave, branch)
+                    self.run_in_slave(job, slave, branch)
                     time.sleep(1)
                     return
                 except RuntimeError as exc:
@@ -36,6 +36,13 @@ class BuildDispatcher(threading.Thread):
                 except Exception as exc:
                     return self.error('Unexpected error: {}'.format(exc))
             time.sleep(0.5)
+
+    def run_in_slave(self, job, slave, branch):
+        self.logger.info('Starting job {}'.format(job.name))
+        job.log_protocol.set_open_callback(lambda: slave.set_busy())
+        job.log_protocol.set_close_callback(lambda: slave.set_free())
+        slave.send_build_request(branch, job.port, job.script)
+        self.logger.info('Sent build command to {}'.format(slave.address))
 
     def push_build(self, branch, slaves, job):
         self.queue.put((branch, slaves, job))
