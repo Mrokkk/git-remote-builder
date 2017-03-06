@@ -132,7 +132,7 @@ class Master:
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
     hook_path = os.path.join(repo, 'hooks/post-receive')
-    template_string = open('../builderlib/post-receive.py', 'r').read()
+    template_string = open(os.path.join(builderlib_root, 'builderlib/post-receive.py'), 'r').read()
     post_receive_hook = open(hook_path, 'w')
     post_receive_hook.write(string.Template(template_string)
         .substitute(PATH='\'' + builderlib_root + '\'', PORT=port, TOKEN='\'' + token + '\''))

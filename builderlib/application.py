@@ -31,7 +31,7 @@ class Application:
         self.logger.info('Created server at {}'.format(server.sockets[0].getsockname()))
         return server.sockets[0].getsockname()[1]
 
-    def _server_thread(self, proto):
+    def __server_thread(self, proto):
         loop = asyncio.new_event_loop()
         coro = loop.create_server(proto, host='127.0.0.1', port=0)
         server = loop.run_until_complete(coro)
@@ -49,7 +49,7 @@ class Application:
 
     def create_server_thread(self, proto):
         self.port = None
-        threading.Thread(target=self._server_thread, args=(proto, ), daemon=True).start()
+        threading.Thread(target=self.__server_thread, args=(proto, ), daemon=True).start()
         self.condition.acquire()
         self.condition.wait(timeout=10)
         self.condition.release()

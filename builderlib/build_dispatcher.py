@@ -19,7 +19,6 @@ class BuildDispatcher(threading.Thread):
     def main_loop(self, queue):
         while True:
             branch, slaves, jobs = queue.get()
-            self.logger.info('Got new build for branch {}'.format(branch))
             for job in jobs:
                 self.run_job(job, slaves, branch)
 
@@ -36,12 +35,12 @@ class BuildDispatcher(threading.Thread):
                     self.logger.error('Error sending build request: {}'.format(exc))
                     return
                 except Exception as exc:
-                    self.logger.error('Unexpected error: {}'.format(exc))
+                    self.logger.critical('Unexpected error: {}'.format(exc))
                     return
             time.sleep(0.5)
 
     def run_in_slave(self, job, slave, branch):
-        self.logger.info('Starting job {}'.format(job.name))
+        self.logger.info('Starting job {} for branch "{}"'.format(job.name, branch))
         job.log_protocol.set_open_callback(lambda: slave.set_busy())
         job.log_protocol.set_close_callback(lambda: slave.set_free())
         slave.send_build_request(self.repo_address, branch, job.port, job.script)
