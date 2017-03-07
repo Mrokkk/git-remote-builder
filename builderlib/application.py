@@ -3,6 +3,7 @@
 import logging
 import asyncio
 import threading
+import queue
 from .connection import *
 
 
@@ -13,8 +14,6 @@ class Application:
     client_ssl_context = None
     servers = []
     logger = None
-    condition = threading.Condition()
-    port = None
 
     def __init__(self, server_ssl_context=None, client_ssl_context=None):
         self.server_ssl_context = server_ssl_context
@@ -31,14 +30,11 @@ class Application:
         self.logger.info('Created server at {}'.format(server.sockets[0].getsockname()))
         return server.sockets[0].getsockname()[1]
 
-    def __server_thread(self, proto):
+    def __server_thread(self, proto, queue):
         loop = asyncio.new_event_loop()
         coro = loop.create_server(proto, host='0.0.0.0', port=0)
         server = loop.run_until_complete(coro)
-        self.condition.acquire()
-        self.port = server.sockets[0].getsockname()[1]
-        self.condition.notify()
-        self.condition.release()
+        queue.put(server.sockets[0].getsockname()[1])
         loop.run_forever()
 
     def create_connection(self, hostname, port):
@@ -48,12 +44,10 @@ class Application:
         self.loop.run_in_executor(None, func)
 
     def create_server_thread(self, proto):
-        self.port = None
-        threading.Thread(target=self.__server_thread, args=(proto, ), daemon=True).start()
-        self.condition.acquire()
-        self.condition.wait(timeout=10)
-        self.condition.release()
-        self.logger.info('Created server at {}'.format(self.port))
+        q = queue.Queue()
+        threading.Thread(target=self.__server_thread, args=(proto, q), daemon=True).start()
+        port = q.get()
+        self.logger.info('Created server at {}'.format(port))
         return self.port
 
     def run(self):
