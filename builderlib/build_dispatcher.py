@@ -29,7 +29,7 @@ class BuildDispatcher(threading.Thread):
                     continue
                 try:
                     self.run_in_slave(job, slave, branch)
-                    time.sleep(5)
+                    time.sleep(1)
                     return
                 except RuntimeError as exc:
                     self.logger.error('Error sending build request: {}'.format(exc))
@@ -41,6 +41,7 @@ class BuildDispatcher(threading.Thread):
 
     def run_in_slave(self, job, slave, branch):
         self.logger.info('Starting job {} for branch "{}"'.format(job.name, branch))
+        slave.set_busy()
         job.log_protocol.set_open_callback(lambda: slave.set_busy())
         job.log_protocol.set_close_callback(lambda: slave.set_free())
         slave.send_build_request(self.repo_address, branch, job.port, job.script)
