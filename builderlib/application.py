@@ -25,7 +25,7 @@ class Application:
 
     def create_server(self, proto, port, ssl=True):
         ssl_context = self.server_ssl_context if ssl else None
-        coro = self.loop.create_server(proto, host='127.0.0.1', port=port, ssl=ssl_context)
+        coro = self.loop.create_server(proto, host='0.0.0.0', port=port, ssl=ssl_context)
         server = self.loop.run_until_complete(coro)
         self.servers.append(server)
         self.logger.info('Created server at {}'.format(server.sockets[0].getsockname()))
@@ -33,7 +33,7 @@ class Application:
 
     def __server_thread(self, proto):
         loop = asyncio.new_event_loop()
-        coro = loop.create_server(proto, host='127.0.0.1', port=0)
+        coro = loop.create_server(proto, host='0.0.0.0', port=0)
         server = loop.run_until_complete(coro)
         self.condition.acquire()
         self.port = server.sockets[0].getsockname()[1]

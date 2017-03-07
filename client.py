@@ -35,12 +35,16 @@ class Completer:
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--host', help='hostname', default='127.0.0.1')
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
     args = parser.parse_args()
-    app = Application(client_ssl_context=create_client_ssl_context(args.ssl[0], args.ssl[1]))
+    ssl_context = None
+    if args.ssl:
+        ssl_context = create_client_ssl_context(args.ssl[0], args.ssl[1])
+    app = Application(client_ssl_context=ssl_context)
     try:
-        connection = app.create_connection('127.0.0.1', args.port)
+        connection = app.create_connection(args.host, args.port)
     except socket.error as err:
         print('Connection error: {}'.format(err))
         sys.exit(1)
