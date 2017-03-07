@@ -33,7 +33,6 @@ class LogProtocol(asyncio.Protocol):
         self.transport = transport
 
     def connection_lost(self, exc):
-        self.file.close()
         self.transport.close()
         if self.on_close:
             self.on_close()
