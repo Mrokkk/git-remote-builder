@@ -56,7 +56,7 @@ class Master:
         def send_build_request(self, repo_address, branch, log_server_port, script):
             message = messages_pb2.SlaveCommand()
             message.token = self.token
-            message.build.repo_address = os.path.abspath(repo_address)
+            message.build.repo_address = repo_address
             message.build.branch = branch
             message.build.log_server_port = log_server_port
             message.build.script = script
