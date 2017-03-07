@@ -79,7 +79,7 @@ class Slave:
         except Exception as exc:
             return self.error('Cannot connect to log server: {}'.format(exc))
         f = connection.file('w')
-        f.write('Starting build for commit "{}" and bramch "{}"\n'.format(commit, branch))
+        f.write('Starting build for commit "{}" and branch "{}"\n'.format(commit, branch))
         proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, stderr=f,
             universal_newlines=True, shell=True, bufsize=1)
         proc.wait()
