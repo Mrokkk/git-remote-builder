@@ -42,7 +42,11 @@ class LogProtocol(asyncio.Protocol):
         self.on_receive.append(reader_func)
 
     def data_received(self, data):
+        # TODO: remove
         self.file.write(data.decode('utf-8'))
         if self.on_receive:
             for callback in self.on_receive:
-                callback(data)
+                try:
+                    callback(data)
+                except:
+                    self.on_receive.remove(callback)
