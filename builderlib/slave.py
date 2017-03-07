@@ -47,6 +47,9 @@ class Slave:
             self.validate_build_message(message)
         except RuntimeError as exc:
             return self.error('Error validating message: {}'.format(exc))
+        addr = message.repo_address.split(':')
+        if addr[0] == socket.gethostname():
+            message.repo_address = addr[1]
         self.logger.info('Received new commit {}'.format(message.commit_hash))
         self.repo_name = os.path.splitext(os.path.basename(message.repo_address))[0]
         with open('build.sh', 'w') as script_file:
