@@ -124,7 +124,7 @@ class Master:
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
             slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
-        except (RuntimeError, socket.error) as exc:
+        except Exception as exc:
             return self.error('Error connecting to slave: {}'.format(exc))
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
@@ -139,7 +139,7 @@ class Master:
         except Exception as exc:
             return self.error('Error connecting to client: {}'.format(exc))
         self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, message.name))
-        job.log_protocol.set_reader(self.sock.sendall)
+        job.log_protocol.add_reader(self.sock.sendall)
         return create_result(messages_pb2.Result.OK)
 
     def find_job(self, name):
@@ -168,6 +168,15 @@ def create_bare_repo(name):
     return repo_path
 
 
+def create_master_message_handler(master, auth_manager):
+    messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
+    messages_handler.register_handler('build', master.handle_build_request)
+    messages_handler.register_handler('connect_slave', master.handle_connect_slave)
+    messages_handler.register_handler('create_job', master.handle_job_adding)
+    messages_handler.register_handler('subscribe_job', master.handle_subscribe_job)
+    return messages_handler
+
+
 def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
@@ -177,11 +186,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     master = Master(repo, app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
-    messages_handler = MessagesHandler(messages_pb2.MasterCommand, auth_manager)
-    messages_handler.register_handler('build', master.handle_build_request)
-    messages_handler.register_handler('connect_slave', master.handle_connect_slave)
-    messages_handler.register_handler('create_job', master.handle_job_adding)
-    messages_handler.register_handler('subscribe_job', master.handle_subscribe_job)
+    messages_handler = create_master_message_handler(master, auth_manager)
     protocol = Protocol(messages_handler.handle)
     app.create_server(lambda: protocol, port)
     git_hook_token = auth_manager.request_token(password)

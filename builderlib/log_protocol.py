@@ -10,7 +10,7 @@ class LogProtocol(asyncio.Protocol):
 
     on_open = None
     on_close = None
-    on_receive = None
+    on_receive = []
 
     def __init__(self, log_name, on_close_callback=None):
         self.log_name = log_name
@@ -38,11 +38,11 @@ class LogProtocol(asyncio.Protocol):
         if self.on_close:
             self.on_close()
 
-    def set_reader(self, reader_func):
-        self.logger.info('Got reader callback')
-        self.on_receive = reader_func
+    def add_reader(self, reader_func):
+        self.on_receive.append(reader_func)
 
     def data_received(self, data):
         self.file.write(data.decode('utf-8'))
         if self.on_receive:
-            self.on_receive(data)
+            for callback in self.on_receive:
+                callback(data)
