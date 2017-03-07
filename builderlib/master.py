@@ -153,7 +153,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = create_bare_repo(name)
-    build_dispatcher = BuildDispatcher(repo)
+    build_dispatcher = BuildDispatcher(socket.gethostname() + ':' + repo)
     build_dispatcher.start()
     master = Master(repo, app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
     password = read_password(validate=True)
