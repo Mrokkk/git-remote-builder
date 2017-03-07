@@ -48,7 +48,7 @@ class Application:
         threading.Thread(target=self.__server_thread, args=(proto, q), daemon=True).start()
         port = q.get()
         self.logger.info('Created server at {}'.format(port))
-        return self.port
+        return port
 
     def run(self):
         self.loop.run_forever()

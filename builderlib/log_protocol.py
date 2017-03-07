@@ -14,6 +14,7 @@ class LogProtocol(asyncio.Protocol):
     def __init__(self, log_name, on_close_callback=None):
         self.log_name = log_name
         self.on_close_callback = on_close_callback
+        self.file = open(self.log_name, 'w', buffering=1)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
@@ -26,7 +27,8 @@ class LogProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         if self.on_open:
             self.on_open()
-        self.file = open(self.log_name, 'w', buffering=1)
+        self.file.seek(0)
+        self.file.truncate()
         self.peername = transport.get_extra_info('peername')
         self.transport = transport
 
