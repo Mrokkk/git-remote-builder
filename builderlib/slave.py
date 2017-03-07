@@ -82,6 +82,10 @@ class Slave:
         proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, stderr=f,
             universal_newlines=True, shell=True, bufsize=1)
         proc.wait()
+        if proc.returncode:
+            f.write('[BUILD FAILED]\n')
+        else:
+            f.write('[BUILD PASSED]\n')
         self.logger.info('Finished build')
         f.close()
         self.busy = False
