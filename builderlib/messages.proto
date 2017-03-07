@@ -22,6 +22,11 @@ message MasterCommand {
         bytes script = 2;
     }
 
+    message SubscribeForJob {
+        string name = 1;
+        int32 port = 2;
+    }
+
     string token = 1;
 
     oneof command {
@@ -29,6 +34,7 @@ message MasterCommand {
         Build build = 3;
         ConnectSlave connect_slave = 4;
         CreateJob create_job = 5;
+        SubscribeForJob subscribe_job = 6;
     }
 
 }

@@ -7,6 +7,7 @@ import sys
 import argparse
 import getpass
 import readline
+import asyncio
 from builderlib.utils import *
 from builderlib import messages_pb2
 from builderlib.application import Application
@@ -32,7 +33,6 @@ class Completer:
             response = None
         return response
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--host', help='hostname', default='127.0.0.1')
@@ -57,7 +57,6 @@ def main():
     except KeyboardInterrupt:
         print('Closing connection')
 
-
 def authenticate(connection):
     token = ''
     token_request = messages_pb2.MasterCommand()
@@ -70,6 +69,26 @@ def authenticate(connection):
     print('Got token: {}'.format(token))
     return token
 
+class ClientLogProtocol(asyncio.Protocol):
+
+    def connection_made(self, transport):
+        print('Got connection!')
+        self.peername = transport.get_extra_info('peername')
+        self.transport = transport
+
+    def connection_lost(self, exc):
+        print('Lost connection!')
+        self.transport.close()
+
+    def data_received(self, data):
+        print(data.decode('utf-8'), end='', flush=True)
+
+def create_server():
+    loop = asyncio.get_event_loop()
+    coro = loop.create_server(ClientLogProtocol, host='0.0.0.0')
+    server = loop.run_until_complete(coro)
+    print('Created server at {}'.format(server.sockets[0].getsockname()))
+    return loop, server.sockets[0].getsockname()[1]
 
 def read_and_send(connection, token):
     line = input('> ').strip('\r\n')
@@ -77,6 +96,7 @@ def read_and_send(connection, token):
     msg.token = token
     args = line.split()
     command = args[0]
+    loop = None
     args = args[1:]
     if command == 'connect':
         msg.connect_slave.address = args[0]
@@ -90,6 +110,9 @@ def read_and_send(connection, token):
         except OSError as exc:
             print('Error: {}'.format(exc))
             return
+    elif command == 'subscr':
+        msg.subscribe_job.name = args[0]
+        loop, msg.subscribe_job.port = create_server()
     else:
         return
     try:
@@ -103,7 +126,8 @@ def read_and_send(connection, token):
     if response.code == messages_pb2.Result.FAIL:
         print('Server returned: {}'.format(response.error))
         return
-
+    if loop:
+        loop.run_forever()
 
 if __name__ == '__main__':
     main()

@@ -129,6 +129,25 @@ class Master:
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
+    def handle_subscribe_job(self, message, peername):
+        job = self.find_job(message.name)
+        if not job:
+            return self.error('No such job')
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((peername[0], message.port))
+        except Exception as exc:
+            return self.error('Error connecting to client: {}'.format(exc))
+        self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, message.name))
+        job.log_protocol.set_reader(self.sock.sendall)
+        return create_result(messages_pb2.Result.OK)
+
+    def find_job(self, name):
+        for job in self.jobs:
+            if job.name == name:
+                return job
+        return None
+
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
     hook_path = os.path.join(repo, 'hooks/post-receive')
@@ -162,6 +181,7 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     messages_handler.register_handler('build', master.handle_build_request)
     messages_handler.register_handler('connect_slave', master.handle_connect_slave)
     messages_handler.register_handler('create_job', master.handle_job_adding)
+    messages_handler.register_handler('subscribe_job', master.handle_subscribe_job)
     protocol = Protocol(messages_handler.handle)
     app.create_server(lambda: protocol, port)
     git_hook_token = auth_manager.request_token(password)
