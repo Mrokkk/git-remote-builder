@@ -26,7 +26,7 @@ class LogProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         if self.on_open:
             self.on_open()
-        self.file = open(self.log_name, 'w')
+        self.file = open(self.log_name, 'w', buffering=1)
         self.peername = transport.get_extra_info('peername')
         self.transport = transport
 

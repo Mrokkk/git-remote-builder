@@ -80,7 +80,7 @@ class Slave:
             return self.error('Cannot connect to log server: {}'.format(exc))
         f = connection.file('w')
         proc = Popen([build_script], cwd=os.path.join(os.getcwd(), repo_name), stdout=f, stderr=f,
-            universal_newlines=True, shell=True)
+            universal_newlines=True, shell=True, bufsize=1)
         proc.wait()
         self.logger.info('Finished build')
         f.close()
