@@ -84,9 +84,9 @@ class Slave:
             universal_newlines=True, shell=True, bufsize=1)
         proc.wait()
         if proc.returncode:
-            f.write('\033[91m[BUILD FAILED]\033[0m\n')
+            f.write('\033[1;31m[BUILD FAILED]\033[0m\n')
         else:
-            f.write('\033[92m[BUILD PASSED]\033[0m\n')
+            f.write('\033[1;32m[BUILD PASSED]\033[0m\n')
         self.logger.info('Finished build')
         f.close()
         self.busy = False
