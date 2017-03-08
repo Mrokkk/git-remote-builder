@@ -6,6 +6,7 @@ import logging
 import string
 import socket
 import subprocess
+import pathlib
 from . import messages_pb2
 from .message_helpers import create_result
 from .utils import *
@@ -163,12 +164,11 @@ def create_post_receive_hook(repo, builderlib_root, port, token):
 
 
 def create_bare_repo(name):
-    repo_path = os.path.join(os.getcwd(), name + '.git')
-    if not os.path.exists(repo_path):
-        os.mkdir(repo_path)
-    proc = subprocess.Popen(['git', 'init', '--bare'], cwd=repo_path)
+    repo_path =  pathlib.Path.cwd() / (name + '.git')
+    repo_path.mkdir(exist_ok=True)
+    proc = subprocess.Popen(['git', 'init', '--bare'], cwd=str(repo_path))
     proc.wait()
-    return repo_path
+    return str(repo_path)
 
 
 def create_master_message_handler(master, auth_manager):
