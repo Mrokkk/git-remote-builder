@@ -12,19 +12,19 @@ message MasterCommand {
     }
 
     message ConnectSlave {
-        string address = 1;
-        int32 port = 2;
-        string password = 3;
+        string address = 3;
+        int32 port = 4;
+        string password = 5;
     }
 
     message CreateJob {
-        string name = 1;
-        bytes script = 2;
+        string name = 6;
+        bytes script = 7;
     }
 
     message SubscribeForJob {
-        string name = 1;
-        int32 port = 2;
+        string name = 8;
+        int32 port = 9;
     }
 
     string token = 1;
