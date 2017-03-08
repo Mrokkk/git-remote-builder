@@ -30,13 +30,14 @@ class Master:
     class Slave:
         connection = None
         token = None
-        free = True
+        free = None
         address = None
 
         def __init__(self, address, password, connection_factory):
             self.logger = logging.getLogger("{}.{}".format(self.__class__.__name__, address))
             self.logger.debug('Constructor')
             self.address = address
+            self.free = True
             self.connection = connection_factory(address[0], address[1])
             token_request = messages_pb2.SlaveCommand()
             token_request.auth.password = password
@@ -67,18 +68,22 @@ class Master:
         log_protocol = None
         script = None
         port = None
+        logger = None
 
-        def __init__(self, name, port, script, log_protocol):
-            self.name = name
-            self.port = port
-            self.script = script
-            self.log_protocol = log_protocol
+        def __init__(self, name, script, server_factory):
             self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
             self.logger.debug('Constructor')
+            self.name = name
+            self.script = script
+            self.server_factory = server_factory
+            self.log_protocol = LogProtocol(name)
+            self.port = self.server_factory(lambda: self.log_protocol)
 
         def __del__(self):
             self.logger.debug('Destructor')
-            self.script_file.close()
+
+        def add_reader(self, reader):
+            self.log_protocol.add_reader(reader)
 
     def __init__(self, repo_address, server_factory, connection_factory, task_factory, build_dispatcher):
         self.repo_address = repo_address
@@ -104,12 +109,10 @@ class Master:
         except RuntimeError as exc:
             return self.error('Error adding job: {}'.format(exc))
         self.logger.info('Adding job: {}'.format(message.name))
-        log_protocol = LogProtocol(message.name)
         try:
-            port = self.server_factory(lambda: log_protocol)
+            job = self.Job(message.name, message.script, self.server_factory)
         except Exception as exc:
-            return self.error('Cannot start log server: {}'.format(exc))
-        job = self.Job(message.name, port, message.script, log_protocol)
+            return self.error('Cannot create job: {}'.format(exc))
         self.jobs.append(job)
         return create_result(messages_pb2.Result.OK)
 
@@ -139,7 +142,7 @@ class Master:
         except Exception as exc:
             return self.error('Error connecting to client: {}'.format(exc))
         self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, job.name))
-        job.log_protocol.add_reader(lambda data: self.sock.sendall(data))
+        job.add_reader(self.sock.sendall)
         return create_result(messages_pb2.Result.OK)
 
     def find_job(self, name):

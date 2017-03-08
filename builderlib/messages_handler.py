@@ -6,8 +6,8 @@ from google.protobuf.text_format import MessageToString
 
 class MessagesHandler:
 
-    msg_num = 0
-    callbacks = {}
+    msg_num = None
+    callbacks = None
     message_type = None
     logger = None
     auth_handler = None
@@ -15,6 +15,8 @@ class MessagesHandler:
     def __init__(self, message_type, auth_handler):
         self.message_type = message_type
         self.auth_handler = auth_handler
+        self.callbacks = {}
+        self.msg_num = 0
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 

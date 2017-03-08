@@ -10,11 +10,12 @@ class LogProtocol(asyncio.Protocol):
 
     on_open = None
     on_close = None
-    on_receive = []
+    on_receive = None
 
     def __init__(self, log_name, on_close_callback=None):
         self.log_name = log_name
         self.on_close_callback = on_close_callback
+        self.on_receive = []
         self.file = open(self.log_name, 'w', buffering=1)
         self.logger = logging.getLogger(self.__class__.__name__ + '.' + self.log_name)
         self.logger.debug('Constructor')
@@ -26,8 +27,6 @@ class LogProtocol(asyncio.Protocol):
         self.on_close = callback
 
     def connection_made(self, transport):
-        if self.on_receive:
-            self.logger.info('{} got {} readers'.format(self.log_name, len(self.on_receive)))
         if self.on_open:
             self.on_open()
         self.file.seek(0)
@@ -45,7 +44,6 @@ class LogProtocol(asyncio.Protocol):
         self.on_receive.append(reader_func)
 
     def data_received(self, data):
-        # TODO: remove
         self.file.write(data.decode('utf-8'))
         if self.on_receive:
             for callback in self.on_receive:

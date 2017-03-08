@@ -6,11 +6,12 @@ from . import messages_pb2
 
 class AuthenticationManager:
 
-    tokens = []
+    tokens = None
     logger = None
 
     def __init__(self, password):
         self._password = password
+        self.tokens = []
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def request_token(self, password):

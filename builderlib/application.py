@@ -12,12 +12,13 @@ class Application:
     loop = None
     server_ssl_context = None
     client_ssl_context = None
-    servers = []
+    servers = None
     logger = None
 
     def __init__(self, server_ssl_context=None, client_ssl_context=None):
         self.server_ssl_context = server_ssl_context
         self.client_ssl_context = client_ssl_context
+        self.servers = []
         self.loop = asyncio.get_event_loop()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
