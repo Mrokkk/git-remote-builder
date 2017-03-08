@@ -16,7 +16,7 @@ class LogProtocol(asyncio.Protocol):
         self.log_name = log_name
         self.on_close_callback = on_close_callback
         self.file = open(self.log_name, 'w', buffering=1)
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(self.__class__.__name__ + '.' + self.log_name)
         self.logger.debug('Constructor')
 
     def set_open_callback(self, callback):

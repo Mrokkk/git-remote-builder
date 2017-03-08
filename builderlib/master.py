@@ -138,8 +138,8 @@ class Master:
             self.sock.connect((peername[0], message.port))
         except Exception as exc:
             return self.error('Error connecting to client: {}'.format(exc))
-        self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, message.name))
-        job.log_protocol.add_reader(self.sock.sendall)
+        self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, job.name))
+        job.log_protocol.add_reader(lambda data: self.sock.sendall(data))
         return create_result(messages_pb2.Result.OK)
 
     def find_job(self, name):
