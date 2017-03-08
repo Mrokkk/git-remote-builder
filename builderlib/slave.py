@@ -73,14 +73,14 @@ class Slave:
         return create_result(messages_pb2.Result.FAIL, error=error)
 
     def build(self, repo_name, repo_address, branch, commit, build_script, address):
-        if not os.path.exists(repo_name):
-            clone_repo(repo_address, branch)
-        checkout_branch(repo_name, branch, self.logger)
-        self.logger.info('Writing build of {} to {}'.format(branch, address))
         try:
             connection = self.connection_factory(address[0], address[1])
         except Exception as exc:
             return self.error('Cannot connect to log server: {}'.format(exc))
+        self.logger.info('Writing build of {} to {}'.format(branch, address))
+        if not os.path.exists(repo_name):
+            clone_repo(repo_address, branch)
+        checkout_branch(repo_name, branch, self.logger)
         f = connection.file('w')
         f.write('Starting build for commit "{}" and branch "{}"\n'.format(commit, branch))
         f.flush()
