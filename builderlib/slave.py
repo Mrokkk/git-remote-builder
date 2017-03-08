@@ -32,12 +32,13 @@ class Slave:
 
     repo_address = None
     logger = None
-    busy = False
+    busy = None
 
     def __init__(self, task_factory, connection_factory):
         self.task_factory = task_factory
         self.connection_factory = connection_factory
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.busy = False
         self.logger.debug('Constructor')
 
     def handle_build_request(self, message, peername):
@@ -47,9 +48,6 @@ class Slave:
             self.validate_build_message(message)
         except RuntimeError as exc:
             return self.error('Error validating message: {}'.format(exc))
-        addr = message.repo_address.split(':')
-        if addr[0] == socket.gethostname():
-            message.repo_address = addr[1]
         self.logger.info('Received new commit {}'.format(message.commit_hash))
         self.repo_name = os.path.splitext(os.path.basename(message.repo_address))[0]
         with open('build.sh', 'w') as script_file:
@@ -67,6 +65,9 @@ class Slave:
             raise RuntimeError('No script')
         if not message.branch:
             raise RuntimeError('No branch')
+        addr = message.repo_address.split(':')
+        if addr[0] == socket.gethostname():
+            message.repo_address = addr[1]
 
     def error(self, error):
         self.logger.error(error)
