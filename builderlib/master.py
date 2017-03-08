@@ -1,7 +1,6 @@
 #!/bin/env python3
 
 import sys
-import os
 import logging
 import string
 import socket
@@ -21,7 +20,6 @@ from google.protobuf.text_format import MessageToString
 
 class Master:
 
-    repo_address = None
     jobs = []
     slaves = []
     clients = []
@@ -86,8 +84,7 @@ class Master:
         def add_reader(self, reader):
             self.log_protocol.add_reader(reader)
 
-    def __init__(self, repo_address, server_factory, connection_factory, task_factory, build_dispatcher):
-        self.repo_address = repo_address
+    def __init__(self, server_factory, connection_factory, task_factory, build_dispatcher):
         self.server_factory = server_factory
         self.connection_factory = connection_factory
         self.task_factory = task_factory
@@ -154,13 +151,13 @@ class Master:
 
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
-    hook_path = os.path.join(repo, 'hooks/post-receive')
-    template_string = open(os.path.join(builderlib_root, 'builderlib/post-receive.py'), 'r').read()
-    post_receive_hook = open(hook_path, 'w')
-    post_receive_hook.write(string.Template(template_string)
-        .substitute(PATH='\'' + builderlib_root + '\'', PORT=port, TOKEN='\'' + token + '\''))
-    post_receive_hook.close()
-    os.chmod(hook_path, 0o700)
+    hook_path = repo / 'hooks' / 'post-receive'
+    path = builderlib_root / 'builderlib' / 'post-receive.py'
+    template_string = path.open(mode='r').read()
+    with hook_path.open(mode='w') as f:
+        f.write(string.Template(template_string)
+            .substitute(PATH='\'' + str(builderlib_root) + '\'', PORT=port, TOKEN='\'' + token + '\''))
+    hook_path.chmod(0o700)
 
 
 def create_bare_repo(name):
@@ -168,7 +165,7 @@ def create_bare_repo(name):
     repo_path.mkdir(exist_ok=True)
     proc = subprocess.Popen(['git', 'init', '--bare'], cwd=str(repo_path))
     proc.wait()
-    return str(repo_path)
+    return repo_path
 
 
 def create_master_message_handler(master, auth_manager):
@@ -184,17 +181,17 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     app = Application(server_ssl_context=create_server_ssl_context(certfile, keyfile),
                       client_ssl_context=create_client_ssl_context(certfile, keyfile))
     repo = create_bare_repo(name)
-    build_dispatcher = BuildDispatcher(socket.gethostname() + ':' + repo)
+    build_dispatcher = BuildDispatcher(socket.gethostname() + ':' + str(repo))
     build_dispatcher.start()
-    master = Master(repo, app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
+    master = Master(app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = create_master_message_handler(master, auth_manager)
     protocol = Protocol(messages_handler.handle)
     app.create_server(lambda: protocol, port)
-    git_hook_token = auth_manager.request_token(password)
     git_hook_port = app.create_server(lambda: protocol, 0, ssl=False)
-    create_post_receive_hook(repo, os.path.abspath(os.path.join(os.getcwd(), '..')), git_hook_port, git_hook_token)
+    create_post_receive_hook(repo, pathlib.Path.cwd().parent,
+        git_hook_port, auth_manager.request_token(password))
     try:
         app.run()
     except KeyboardInterrupt:
