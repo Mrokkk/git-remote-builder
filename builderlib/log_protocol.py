@@ -26,6 +26,8 @@ class LogProtocol(asyncio.Protocol):
         self.on_close = callback
 
     def connection_made(self, transport):
+        if self.on_receive:
+            self.logger.info('{} got {} readers'.format(self.log_name, len(self.on_receive)))
         if self.on_open:
             self.on_open()
         self.file.seek(0)
@@ -39,6 +41,7 @@ class LogProtocol(asyncio.Protocol):
             self.on_close()
 
     def add_reader(self, reader_func):
+        self.logger.info('Adding reader for "{}"'.format(self.log_name))
         self.on_receive.append(reader_func)
 
     def data_received(self, data):
