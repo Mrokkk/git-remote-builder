@@ -2,6 +2,7 @@
 
 import sys
 import os
+import pathlib
 import logging
 from . import messages_pb2
 from .protocol import *
@@ -49,13 +50,14 @@ class Slave:
         except RuntimeError as exc:
             return self.error('Error validating message: {}'.format(exc))
         self.logger.info('Received new commit {}'.format(message.commit_hash))
-        self.repo_name = os.path.splitext(os.path.basename(message.repo_address))[0]
-        with open('build.sh', 'w') as script_file:
+        self.repo_name = pathlib.Path(message.repo_address).stem
+        script_path = pathlib.Path('build.sh')
+        with script_path.open(mode='w') as script_file:
             script_file.write(message.script.decode('ascii'))
-        os.chmod('build.sh', 0o700)
+        script_path.chmod(0o700)
         self.busy = True
         self.task_factory(lambda: self.build(self.repo_name, message.repo_address, message.branch,
-            message.commit_hash, os.path.abspath('build.sh'), (peername[0], message.log_server_port)))
+            message.commit_hash, str(script_path.resolve()), (peername[0], message.log_server_port)))
         return create_result(messages_pb2.Result.OK)
 
     def validate_build_message(self, message):
