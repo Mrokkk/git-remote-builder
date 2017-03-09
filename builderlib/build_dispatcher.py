@@ -48,5 +48,5 @@ class BuildDispatcher(threading.Thread):
         slave.send_build_request(self.repo_address, branch, job.port, job.script)
         self.logger.info('Sent build command to {}'.format(slave.address))
 
-    def push_build(self, branch, slaves, job):
+    def enqueue(self, branch, slaves, job):
         self.queue.put((branch, slaves, job))

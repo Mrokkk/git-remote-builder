@@ -39,7 +39,7 @@ class MessagesHandler:
         try:
             callback = self.callbacks[message.WhichOneof('command')]
         except:
-            self.logger.error('No callback for that message: {}'.format(
+            self.logger.error('No callback for message: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
         if not self.auth_handler.authentication_callback(message, peername):

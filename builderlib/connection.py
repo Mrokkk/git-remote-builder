@@ -36,3 +36,6 @@ class Connection:
         if result.code == Result.FAIL:
             raise RuntimeError("Fail on server side!")
         return result
+
+    def send_nowait(self, message):
+        self.sock.sendall(message.SerializeToString())

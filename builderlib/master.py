@@ -59,7 +59,7 @@ class Master:
             message.build.branch = branch
             message.build.log_server_port = log_server_port
             message.build.script = script
-            self.connection.send(message)
+            self.connection.send_nowait(message)
 
     class Job:
         name = None
@@ -99,7 +99,7 @@ class Master:
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
-        self.build_dispatcher.push_build(message.branch, self.slaves, self.jobs)
+        self.build_dispatcher.enqueue(message.branch, self.slaves, self.jobs)
         return create_result(messages_pb2.Result.OK)
 
     def handle_job_adding(self, message, peername):
