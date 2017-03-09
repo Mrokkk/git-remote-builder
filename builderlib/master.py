@@ -20,9 +20,8 @@ from google.protobuf.text_format import MessageToString
 
 class Master:
 
-    jobs = []
-    slaves = []
-    clients = []
+    jobs = None
+    slaves = None
     server_factory = None
     logger = None
 
@@ -85,6 +84,8 @@ class Master:
             self.log_protocol.add_reader(reader)
 
     def __init__(self, server_factory, connection_factory, task_factory, build_dispatcher):
+        self.jobs = []
+        self.slaves = []
         self.server_factory = server_factory
         self.connection_factory = connection_factory
         self.task_factory = task_factory
