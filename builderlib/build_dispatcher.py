@@ -29,7 +29,6 @@ class BuildDispatcher(threading.Thread):
                     continue
                 try:
                     self.run_in_slave(job, slave, branch)
-                    time.sleep(0.5)
                     return
                 except RuntimeError as exc:
                     self.logger.error('Error sending build request: {}'.format(exc))
