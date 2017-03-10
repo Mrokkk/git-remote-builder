@@ -15,6 +15,7 @@ from .messages_handler import *
 from .application import *
 from .log_protocol import *
 from .build_dispatcher import *
+from .slave_connection import *
 from google.protobuf.text_format import MessageToString
 
 
@@ -24,42 +25,6 @@ class Master:
     slaves = None
     server_factory = None
     logger = None
-
-    class Slave:
-        connection = None
-        token = None
-        free = None
-        address = None
-
-        def __init__(self, address, password, connection_factory):
-            self.logger = logging.getLogger("{}.{}".format(self.__class__.__name__, address))
-            self.logger.debug('Constructor')
-            self.address = address
-            self.free = True
-            self.connection = connection_factory(address[0], address[1])
-            token_request = messages_pb2.SlaveCommand()
-            token_request.auth.password = password
-            response = self.connection.send(token_request)
-            if not response.token:
-                raise RuntimeError('Bad password')
-            self.token = response.token
-
-        def set_free(self):
-            self.logger.info('Finished build')
-            self.free = True
-
-        def set_busy(self):
-            self.logger.info('Starting build')
-            self.free = False
-
-        def send_build_request(self, repo_address, branch, log_server_port, script):
-            message = messages_pb2.SlaveCommand()
-            message.token = self.token
-            message.build.repo_address = repo_address
-            message.build.branch = branch
-            message.build.log_server_port = log_server_port
-            message.build.script = script
-            self.connection.send_nowait(message)
 
     class Job:
         name = None
@@ -83,11 +48,11 @@ class Master:
         def add_reader(self, reader):
             self.log_protocol.add_reader(reader)
 
-    def __init__(self, server_factory, connection_factory, task_factory, build_dispatcher):
+    def __init__(self, server_factory, slave_connection_factory, task_factory, build_dispatcher):
         self.jobs = []
         self.slaves = []
         self.server_factory = server_factory
-        self.connection_factory = connection_factory
+        self.connection_factory = slave_connection_factory
         self.task_factory = task_factory
         self.build_dispatcher = build_dispatcher
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -125,15 +90,16 @@ class Master:
         address = (message.address, message.port)
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
-            slave = self.Slave((message.address, message.port), message.password, self.connection_factory)
+            slave = self.connection_factory.create_connection((message.address, message.port), message.password)
         except Exception as exc:
             return self.error('Error connecting to slave: {}'.format(exc))
         self.slaves.append(slave)
         return create_result(messages_pb2.Result.OK)
 
     def handle_subscribe_job(self, message, peername):
-        job = self.find_job(message.name)
-        if not job:
+        try:
+            job = next(j for j in self.jobs if j.name == message.name)
+        except:
             return self.error('No such job')
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -143,12 +109,6 @@ class Master:
         self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, job.name))
         job.add_reader(self.sock.sendall)
         return create_result(messages_pb2.Result.OK)
-
-    def find_job(self, name):
-        for job in self.jobs:
-            if job.name == name:
-                return job
-        return None
 
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
@@ -184,7 +144,8 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     repo = create_bare_repo(name)
     build_dispatcher = BuildDispatcher(socket.gethostname() + ':' + str(repo))
     build_dispatcher.start()
-    master = Master(app.create_server_thread, app.create_connection, app.create_task, build_dispatcher)
+    slave_connection_factory = SlaveConnectionFactory(app.create_connection)
+    master = Master(app.create_server_thread, slave_connection_factory, app.create_task, build_dispatcher)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = create_master_message_handler(master, auth_manager)
