@@ -16,3 +16,6 @@ def success_message():
 
 def fail_message(error):
     return create_result(Result.FAIL, error=error)
+
+def busy_message():
+    return create_result(Result.BUSY)

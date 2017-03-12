@@ -10,7 +10,7 @@ from builderlib.authentication import *
 from builderlib.messages_handler import *
 from builderlib.application import *
 from builderlib.utils import *
-from builderlib.message_helpers import *
+from builderlib.message_helpers import success_message, fail_message, busy_message
 from google.protobuf.text_format import MessageToString
 from subprocess import call, Popen, DEVNULL, PIPE
 
@@ -44,7 +44,7 @@ class Slave:
 
     def handle_build_request(self, message, peername):
         if self.busy:
-            return create_result(messages_pb2.Result.BUSY)
+            return busy_message()
         try:
             self.validate_build_message(message)
         except RuntimeError as exc:
@@ -58,7 +58,7 @@ class Slave:
         self.busy = True
         self.task_factory(lambda: self.build(self.repo_name, message.repo_address, message.branch,
             message.commit_hash, str(script_path.resolve()), (peername[0], message.log_server_port)))
-        return create_result(messages_pb2.Result.OK)
+        return success_message()
 
     def validate_build_message(self, message):
         if not message.repo_address:
@@ -73,7 +73,7 @@ class Slave:
 
     def error(self, error):
         self.logger.error(error)
-        return create_result(messages_pb2.Result.FAIL, error=error)
+        return fail_message(error)
 
     def build(self, repo_name, repo_address, branch, commit, build_script, address):
         try:
