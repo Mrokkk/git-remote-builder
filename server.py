@@ -4,8 +4,6 @@ import os
 import sys
 import argparse
 import logging
-from builderlib.master import main as master
-from builderlib.slave import main as slave
 
 
 def configure_logger(filename):
@@ -46,8 +44,10 @@ def main():
     os.umask(0o077)
     logger = configure_logger('log')
     if args.master:
+        from builderlib.master import main as master
         master.main(args.name, certfile=cert, keyfile=key, port=args.port)
     else:
+        from builderlib.slave import main as slave
         slave.main(args.name, certfile=cert, keyfile=key, port=args.port)
 
 

@@ -13,7 +13,7 @@ from builderlib.protocol import *
 from builderlib.authentication import *
 from builderlib.messages_handler import *
 from builderlib.application import *
-from .log_protocol import *
+from .job import *
 from .build_dispatcher import *
 from .slave_connection import *
 from google.protobuf.text_format import MessageToString
@@ -25,28 +25,6 @@ class Master:
     slaves = None
     server_factory = None
     logger = None
-
-    class Job:
-        name = None
-        log_protocol = None
-        script = None
-        port = None
-        logger = None
-
-        def __init__(self, name, script, server_factory):
-            self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
-            self.logger.debug('Constructor')
-            self.name = name
-            self.script = script
-            self.server_factory = server_factory
-            self.log_protocol = LogProtocol(name)
-            self.port = self.server_factory(lambda: self.log_protocol)
-
-        def __del__(self):
-            self.logger.debug('Destructor')
-
-        def add_reader(self, reader):
-            self.log_protocol.add_reader(reader)
 
     def __init__(self, server_factory, slave_connection_factory, task_factory, build_dispatcher):
         self.jobs = []
@@ -74,7 +52,7 @@ class Master:
             return self.error('Error adding job: {}'.format(exc))
         self.logger.info('Adding job: {}'.format(message.name))
         try:
-            job = self.Job(message.name, message.script, self.server_factory)
+            job = Job(message.name, message.script, self.server_factory)
         except Exception as exc:
             return self.error('Cannot create job: {}'.format(exc))
         self.jobs.append(job)
