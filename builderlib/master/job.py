@@ -25,3 +25,12 @@ class Job:
 
     def add_reader(self, reader):
         self.log_protocol.add_reader(reader)
+
+
+class JobFactory:
+
+    def __init__(self, server_factory):
+        self.server_factory = server_factory
+
+    def create_job(self, name, script):
+        return Job(name, script, self.server_factory)

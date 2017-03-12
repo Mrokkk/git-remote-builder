@@ -26,12 +26,11 @@ class Master:
     server_factory = None
     logger = None
 
-    def __init__(self, server_factory, slave_connection_factory, task_factory, build_dispatcher):
+    def __init__(self, job_factory, slave_connection_factory, build_dispatcher):
         self.jobs = []
         self.slaves = []
-        self.server_factory = server_factory
+        self.job_factory = job_factory
         self.connection_factory = slave_connection_factory
-        self.task_factory = task_factory
         self.build_dispatcher = build_dispatcher
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
@@ -52,7 +51,7 @@ class Master:
             return self.error('Error adding job: {}'.format(exc))
         self.logger.info('Adding job: {}'.format(message.name))
         try:
-            job = Job(message.name, message.script, self.server_factory)
+            job = self.job_factory.create_job(message.name, message.script)
         except Exception as exc:
             return self.error('Cannot create job: {}'.format(exc))
         self.jobs.append(job)
@@ -123,7 +122,8 @@ def main(name, certfile=None, keyfile=None, port=None, jobs=None, slaves=None):
     build_dispatcher = BuildDispatcher(socket.gethostname() + ':' + str(repo))
     build_dispatcher.start()
     slave_connection_factory = SlaveConnectionFactory(app.create_connection)
-    master = Master(app.create_server_thread, slave_connection_factory, app.create_task, build_dispatcher)
+    job_factory = JobFactory(app.create_server_thread)
+    master = Master(job_factory, slave_connection_factory, build_dispatcher)
     password = read_password(validate=True)
     auth_manager = AuthenticationManager(password)
     messages_handler = create_master_message_handler(master, auth_manager)
