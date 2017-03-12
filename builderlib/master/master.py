@@ -33,15 +33,12 @@ class Master:
     def handle_job_adding(self, message, peername):
         try:
             self.validate_job_adding_message(message)
-        except RuntimeError as exc:
-            return self.error('Error adding job: {}'.format(exc))
-        self.logger.info('Adding job: {}'.format(message.name))
-        try:
+            self.logger.info('Adding job: {}'.format(message.name))
             job = self.job_factory.create_job(message.name, message.script)
+            self.jobs.append(job)
+            return create_result(messages_pb2.Result.OK)
         except Exception as exc:
-            return self.error('Cannot create job: {}'.format(exc))
-        self.jobs.append(job)
-        return create_result(messages_pb2.Result.OK)
+            return self.error('Error adding job: {}'.format(exc))
 
     def validate_job_adding_message(self, message):
         if not message.name:
@@ -54,10 +51,10 @@ class Master:
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
         try:
             slave = self.connection_factory.create_connection((message.address, message.port), message.password)
+            self.slaves.append(slave)
+            return create_result(messages_pb2.Result.OK)
         except Exception as exc:
             return self.error('Error connecting to slave: {}'.format(exc))
-        self.slaves.append(slave)
-        return create_result(messages_pb2.Result.OK)
 
     def handle_subscribe_job(self, message, peername):
         try:
