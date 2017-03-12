@@ -2,8 +2,7 @@
 
 import socket
 import logging
-from builderlib.message_helpers import create_result
-from builderlib import messages_pb2
+from builderlib.message_helpers import fail_message, success_message
 
 class Master:
 
@@ -23,12 +22,12 @@ class Master:
 
     def error(self, error):
         self.logger.error(error)
-        return create_result(messages_pb2.Result.FAIL, error=error)
+        return fail_message(error)
 
     def handle_build_request(self, message, peername):
         self.logger.info('Received new commit {}/{}'.format(message.branch, message.commit_hash))
         self.build_dispatcher.enqueue(message.branch, self.slaves, self.jobs)
-        return create_result(messages_pb2.Result.OK)
+        return success_message()
 
     def handle_job_adding(self, message, peername):
         try:
@@ -36,7 +35,7 @@ class Master:
             self.logger.info('Adding job: {}'.format(message.name))
             job = self.job_factory.create_job(message.name, message.script)
             self.jobs.append(job)
-            return create_result(messages_pb2.Result.OK)
+            return success_message()
         except Exception as exc:
             return self.error('Error adding job: {}'.format(exc))
 
@@ -52,7 +51,7 @@ class Master:
         try:
             slave = self.connection_factory.create_connection((message.address, message.port), message.password)
             self.slaves.append(slave)
-            return create_result(messages_pb2.Result.OK)
+            return success_message()
         except Exception as exc:
             return self.error('Error connecting to slave: {}'.format(exc))
 
@@ -68,4 +67,4 @@ class Master:
             return self.error('Error connecting to client: {}'.format(exc))
         self.logger.info('{}:{} subscribed for job {}'.format(peername[0], message.port, job.name))
         job.add_reader(self.sock.sendall)
-        return create_result(messages_pb2.Result.OK)
+        return success_message()

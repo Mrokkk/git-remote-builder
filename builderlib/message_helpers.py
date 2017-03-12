@@ -11,3 +11,8 @@ def create_result(code, error=None, token=None):
         result.token = token
     return result
 
+def success_message():
+    return create_result(Result.OK)
+
+def fail_message(error):
+    return create_result(Result.FAIL, error=error)
