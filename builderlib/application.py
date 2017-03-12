@@ -4,7 +4,7 @@ import logging
 import asyncio
 import threading
 import queue
-from .connection import *
+from builderlib.connection import *
 
 
 class Application:

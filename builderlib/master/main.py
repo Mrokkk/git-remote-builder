@@ -6,13 +6,13 @@ import string
 import socket
 import subprocess
 import pathlib
-from . import messages_pb2
-from .message_helpers import create_result
-from .utils import *
-from .protocol import *
-from .authentication import *
-from .messages_handler import *
-from .application import *
+from builderlib import messages_pb2
+from builderlib.message_helpers import create_result
+from builderlib.utils import *
+from builderlib.protocol import *
+from builderlib.authentication import *
+from builderlib.messages_handler import *
+from builderlib.application import *
 from .log_protocol import *
 from .build_dispatcher import *
 from .slave_connection import *
@@ -113,7 +113,7 @@ class Master:
 
 def create_post_receive_hook(repo, builderlib_root, port, token):
     hook_path = repo / 'hooks' / 'post-receive'
-    path = builderlib_root / 'builderlib' / 'post-receive.py'
+    path = builderlib_root / 'builderlib' / 'master' / 'post-receive.py'
     template_string = path.open(mode='r').read()
     with hook_path.open(mode='w') as f:
         f.write(string.Template(template_string)

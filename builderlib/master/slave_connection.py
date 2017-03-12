@@ -1,7 +1,7 @@
 #!/bin env python3
 
 import logging
-from . import messages_pb2
+from builderlib import messages_pb2
 
 
 class SlaveConnection:

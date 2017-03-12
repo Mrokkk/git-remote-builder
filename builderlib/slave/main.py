@@ -4,13 +4,13 @@ import sys
 import os
 import pathlib
 import logging
-from . import messages_pb2
-from .protocol import *
-from .authentication import *
-from .messages_handler import *
-from .application import *
-from .utils import *
-from .message_helpers import *
+from builderlib import messages_pb2
+from builderlib.protocol import *
+from builderlib.authentication import *
+from builderlib.messages_handler import *
+from builderlib.application import *
+from builderlib.utils import *
+from builderlib.message_helpers import *
 from google.protobuf.text_format import MessageToString
 from subprocess import call, Popen, DEVNULL, PIPE
 

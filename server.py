@@ -4,8 +4,8 @@ import os
 import sys
 import argparse
 import logging
-from builderlib import master
-from builderlib import slave
+from builderlib.master import main as master
+from builderlib.slave import main as slave
 
 
 def configure_logger(filename):
