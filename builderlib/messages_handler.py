@@ -2,6 +2,7 @@
 
 import logging
 from . import messages_pb2
+from builderlib.message_helpers import *
 from google.protobuf.text_format import MessageToString
 
 
@@ -43,9 +44,12 @@ class MessagesHandler:
             self.logger.warning('Message without token: {}'.format(
                 MessageToString(message, as_one_line=True)))
             return None
-        response = callback(eval('message.{}'.format(message.WhichOneof('command'))), peername)
+        try:
+            response = callback(eval('message.{}'.format(message.WhichOneof('command'))), peername)
+        except RuntimeError as exc:
+            self.logger.error('Error in callback: {}'.format(exc))
+            return fail_message('Error: {}'.format(exc)).SerializeToString()
         if not response:
-            self.logger.warning('Callback returned None')
             return None
         return response.SerializeToString()
 

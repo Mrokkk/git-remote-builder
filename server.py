@@ -2,8 +2,10 @@
 
 import os
 import sys
-import argparse
+import pathlib
 import logging
+from os import path, chdir, umask
+from argparse import ArgumentParser
 
 
 def configure_logger(filename):
@@ -23,7 +25,7 @@ def configure_logger(filename):
     return logger
 
 def get_args():
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument('name', metavar='NAME')
     parser.add_argument('-p', '--port', help='use given port', type=int)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
@@ -37,11 +39,10 @@ def main():
     if args.ssl:
         cert = os.path.abspath(args.ssl[0])
         key = os.path.abspath(args.ssl[1])
-    workspace = os.path.join(os.getcwd(), 'workspace')
-    if not os.path.exists(workspace):
-        os.makedirs(workspace)
-    os.chdir(workspace)
-    os.umask(0o077)
+    workspace = pathlib.Path.cwd() / 'workspace'
+    workspace.mkdir(exist_ok=True)
+    chdir(str(workspace))
+    umask(0o077)
     logger = configure_logger('log')
     if args.master:
         from builderlib.master import main as master

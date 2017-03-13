@@ -2,6 +2,7 @@
 
 import socket
 import logging
+from . import message_validators
 from builderlib.message_helpers import fail_message, success_message
 
 class Master:
@@ -29,9 +30,9 @@ class Master:
         self.build_dispatcher.enqueue(message.branch, self.slaves, self.jobs)
         return success_message()
 
+    @message_validators.create_job
     def handle_job_adding(self, message, peername):
         try:
-            self.validate_job_adding_message(message)
             self.logger.info('Adding job: {}'.format(message.name))
             job = self.job_factory.create_job(message.name, message.script)
             self.jobs.append(job)
@@ -39,12 +40,7 @@ class Master:
         except Exception as exc:
             return self.error('Error adding job: {}'.format(exc))
 
-    def validate_job_adding_message(self, message):
-        if not message.name:
-            raise RuntimeError('No job name')
-        if not message.script:
-            raise RuntimeError('No script')
-
+    @message_validators.connect_slave
     def handle_connect_slave(self, message, peername):
         address = (message.address, message.port)
         self.logger.info('{}: Connecting slave: {}'.format(peername, address))
