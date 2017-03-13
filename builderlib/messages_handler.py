@@ -4,6 +4,7 @@ import logging
 from . import messages_pb2
 from google.protobuf.text_format import MessageToString
 
+
 class MessagesHandler:
 
     msg_num = None
@@ -20,22 +21,18 @@ class MessagesHandler:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug('Constructor')
 
-    def register_handler(self, message_name, handler):
-        self.callbacks[message_name] = handler
-
-    def handle(self, data, peername):
+    def __parse_message(self, data):
         message = self.message_type()
-        try:
-            message.ParseFromString(data)
-        except:
-            self.logger.warning('Bad message type')
+        message.ParseFromString(data)
+        return message
+
+    def __handle_auth_message(self, message, peername):
+        resp = self.auth_handler.handle_authentication_request(message.auth, peername)
+        if not resp:
             return None
-        self.msg_num += 1
-        if message.WhichOneof('command') == 'auth':
-            resp = self.auth_handler.handle_authentication_request(message.auth, peername)
-            if not resp:
-                return None
-            return resp.SerializeToString()
+        return resp.SerializeToString()
+
+    def __handle_message(self, message, peername):
         try:
             callback = self.callbacks[message.WhichOneof('command')]
         except:
@@ -49,3 +46,17 @@ class MessagesHandler:
             self.logger.warning('Callback returned None')
             return None
         return response.SerializeToString()
+
+    def register_handler(self, message_name, handler):
+        self.callbacks[message_name] = handler
+
+    def handle(self, data, peername):
+        try:
+            message = self.__parse_message(data)
+        except:
+            self.logger.warning('Not a message')
+            return None
+        self.msg_num += 1
+        if message.WhichOneof('command') == 'auth':
+            return self.__handle_auth_message(message, peername)
+        return self.__handle_message(message, peername)
