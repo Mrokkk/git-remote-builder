@@ -3,6 +3,7 @@
 import asyncio
 import logging
 
+
 class Protocol(asyncio.Protocol):
 
     logger = None

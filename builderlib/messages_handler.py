@@ -40,6 +40,8 @@ class MessagesHandler:
                 MessageToString(message, as_one_line=True)))
             return None
         if not self.auth_handler.authentication_callback(message, peername):
+            self.logger.warning('Message without token: {}'.format(
+                MessageToString(message, as_one_line=True)))
             return None
         response = callback(eval('message.{}'.format(message.WhichOneof('command'))), peername)
         if not response:

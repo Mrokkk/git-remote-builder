@@ -4,6 +4,7 @@ import secrets
 import logging
 from . import messages_pb2
 
+
 class AuthenticationManager:
 
     tokens = None
@@ -14,18 +15,18 @@ class AuthenticationManager:
         self.tokens = []
         self.logger = logging.getLogger(self.__class__.__name__)
 
+    def __authenticate(self, token):
+        if token in self.tokens:
+            return True
+        self.logger.warning('Bad token {}'.format(token))
+        return False
+
     def request_token(self, password):
         if password.strip() == self._password.strip():
             token = secrets.token_hex(16)
             self.tokens.append(token)
             return token
         return None
-
-    def __authenticate(self, token):
-        if token in self.tokens:
-            return True
-        self.logger.warning('Bad token {}'.format(token))
-        return False
 
     def handle_authentication_request(self, message, peername):
         response = messages_pb2.Result()
