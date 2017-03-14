@@ -2,9 +2,11 @@
 
 import logging
 from .log_protocol import *
+from .log_reader import *
 
 
 class Job:
+
     name = None
     log_protocol = None
     script = None
@@ -17,6 +19,8 @@ class Job:
         self.script = script
         self.port = port
         self.log_protocol = log_protocol
+        self.log_reader = LogReader(name)
+        self.log_protocol.add_reader(lambda data: self.log_reader.reader_callback(data))
         self.logger.debug('Constructor')
 
     def add_reader(self, reader):

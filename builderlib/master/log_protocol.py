@@ -13,7 +13,6 @@ class LogProtocol(asyncio.Protocol):
     def __init__(self, log_name):
         self.log_name = log_name
         self.on_receive = []
-        self.file = open(self.log_name, 'w', buffering=1)
         self.logger = logging.getLogger(self.__class__.__name__ + '.' + self.log_name)
         self.logger.debug('Constructor')
 
@@ -26,8 +25,6 @@ class LogProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         if self.on_open:
             self.on_open()
-        self.file.seek(0)
-        self.file.truncate()
         self.peername = transport.get_extra_info('peername')
         self.transport = transport
 
@@ -41,10 +38,11 @@ class LogProtocol(asyncio.Protocol):
         self.on_receive.append(reader_func)
 
     def data_received(self, data):
-        self.file.write(data.decode('utf-8'))
-        if self.on_receive:
-            for callback in self.on_receive:
-                try:
-                    callback(data)
-                except:
-                    self.on_receive.remove(callback)
+        if not self.on_receive:
+            return
+        for callback in self.on_receive:
+            try:
+                callback(data)
+            except Exception as exc:
+                self.logger.warning('Exception in callback: {}'.format(exc))
+                self.on_receive.remove(callback)
