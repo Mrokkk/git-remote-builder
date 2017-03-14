@@ -11,17 +11,13 @@ class Job:
     port = None
     logger = None
 
-    def __init__(self, name, script, server_factory):
+    def __init__(self, name, script, port, log_protocol):
         self.logger = logging.getLogger(self.__class__.__name__ + '.' + name)
-        self.logger.debug('Constructor')
         self.name = name
         self.script = script
-        self.server_factory = server_factory
-        self.log_protocol = LogProtocol(name)
-        self.port = self.server_factory(lambda: self.log_protocol)
-
-    def __del__(self):
-        self.logger.debug('Destructor')
+        self.port = port
+        self.log_protocol = log_protocol
+        self.logger.debug('Constructor')
 
     def add_reader(self, reader):
         self.log_protocol.add_reader(reader)
@@ -33,4 +29,6 @@ class JobFactory:
         self.server_factory = server_factory
 
     def create_job(self, name, script):
-        return Job(name, script, self.server_factory)
+        log_protocol = LogProtocol(name)
+        port = self.server_factory(lambda: log_protocol)
+        return Job(name, script, port, log_protocol)
