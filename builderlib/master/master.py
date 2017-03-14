@@ -51,6 +51,7 @@ class Master:
         except Exception as exc:
             return self.error('Error connecting to slave: {}'.format(exc))
 
+    @message_validators.subscribe_job
     def handle_subscribe_job(self, message, peername):
         try:
             job = next(j for j in self.jobs if j.name == message.name)

@@ -20,3 +20,13 @@ def create_job(func):
             raise RuntimeError('No script')
         return func(*args)
     return func_wrapper
+
+
+def subscribe_job(func):
+    def func_wrapper(*args):
+        if not args[1].name:
+            raise RuntimeError('No job name')
+        if not args[1].port:
+            raise RuntimeError('No port')
+        return func(*args)
+    return func_wrapper
