@@ -1,7 +1,5 @@
 #!/bin/env python3
 
-import sys
-import os
 import asyncio
 import logging
 
@@ -12,9 +10,8 @@ class LogProtocol(asyncio.Protocol):
     on_close = None
     on_receive = None
 
-    def __init__(self, log_name, on_close_callback=None):
+    def __init__(self, log_name):
         self.log_name = log_name
-        self.on_close_callback = on_close_callback
         self.on_receive = []
         self.file = open(self.log_name, 'w', buffering=1)
         self.logger = logging.getLogger(self.__class__.__name__ + '.' + self.log_name)
