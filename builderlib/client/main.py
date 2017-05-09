@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 import socket
 import ssl
 import os
@@ -9,41 +11,8 @@ from builderlib.utils import *
 from builderlib import messages_pb2
 from builderlib.application import Application
 from google.protobuf.text_format import MessageToString
-
-
-class ClientLogProtocol(asyncio.Protocol):
-
-    def connection_made(self, transport):
-        print('Got connection!')
-        self.peername = transport.get_extra_info('peername')
-        self.transport = transport
-
-    def connection_lost(self, exc):
-        print('Lost connection!')
-        self.transport.close()
-
-    def data_received(self, data):
-        print(data.decode('utf-8'), end='', flush=True)
-
-
-class Completer:
-
-    def __init__(self, options):
-        self.options = sorted(options)
-        self.matches = None
-        return
-
-    def complete(self, text, state):
-        if state == 0:
-            if text:
-                self.matches = [s for s in self.options if s and s.startswith(text)]
-            else:
-                self.matches = self.options[:]
-        try:
-            response = self.matches[state]
-        except IndexError:
-            response = None
-        return response
+from .log_protocol import *
+from .completer import *
 
 
 def authenticate(connection):
@@ -70,7 +39,7 @@ def make_connection(host, port, ssl_context):
 
 def create_server():
     loop = asyncio.get_event_loop()
-    coro = loop.create_server(ClientLogProtocol, host='0.0.0.0')
+    coro = loop.create_server(LogProtocol, host='0.0.0.0')
     server = loop.run_until_complete(coro)
     print('Created server at {}'.format(server.sockets[0].getsockname()))
     return loop, server.sockets[0].getsockname()[1]
@@ -115,8 +84,7 @@ def read_and_send(connection, token):
         loop.run_forever()
 
 def main(host, port, certfile=None, keyfile=None):
-    ssl_context = create_client_ssl_context(certfile, keyfile)
-    connection, token = make_connection(host, port, ssl_context)
+    connection, token = make_connection(host, port, create_client_ssl_context(certfile, keyfile))
     readline.parse_and_bind('tab: complete')
     readline.set_completer(Completer(['connect', 'create', 'subscr']).complete)
     try:
