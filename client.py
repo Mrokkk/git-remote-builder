@@ -14,6 +14,21 @@ from builderlib.application import Application
 from google.protobuf.text_format import MessageToString
 
 
+class ClientLogProtocol(asyncio.Protocol):
+
+    def connection_made(self, transport):
+        print('Got connection!')
+        self.peername = transport.get_extra_info('peername')
+        self.transport = transport
+
+    def connection_lost(self, exc):
+        print('Lost connection!')
+        self.transport.close()
+
+    def data_received(self, data):
+        print(data.decode('utf-8'), end='', flush=True)
+
+
 class Completer:
 
     def __init__(self, options):
@@ -33,29 +48,13 @@ class Completer:
             response = None
         return response
 
-def main():
+
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--host', help='hostname', default='127.0.0.1')
     parser.add_argument('-p', '--port', help='use given port', type=int, default=0)
     parser.add_argument('-s', '--ssl', help='use SLL with given certificate and key', nargs=2, metavar=('CERT', 'KEY'))
-    args = parser.parse_args()
-    ssl_context = None
-    if args.ssl:
-        ssl_context = create_client_ssl_context(args.ssl[0], args.ssl[1])
-    app = Application(client_ssl_context=ssl_context)
-    try:
-        connection = app.create_connection(args.host, args.port)
-    except socket.error as err:
-        print('Connection error: {}'.format(err))
-        sys.exit(1)
-    token = authenticate(connection)
-    readline.parse_and_bind('tab: complete')
-    readline.set_completer(Completer(['connect', 'create']).complete)
-    try:
-        while True:
-            read_and_send(connection, token)
-    except KeyboardInterrupt:
-        print('Closing connection')
+    return parser.parse_args()
 
 def authenticate(connection):
     token = ''
@@ -69,19 +68,29 @@ def authenticate(connection):
     print('Got token: {}'.format(token))
     return token
 
-class ClientLogProtocol(asyncio.Protocol):
+def make_connection(host, port, ssl_context):
+    app = Application(client_ssl_context=ssl_context)
+    try:
+        connection = app.create_connection(host, port)
+    except socket.error as err:
+        print('Connection error: {}'.format(err))
+        sys.exit(1)
+    token = authenticate(connection)
+    return connection, token
 
-    def connection_made(self, transport):
-        print('Got connection!')
-        self.peername = transport.get_extra_info('peername')
-        self.transport = transport
-
-    def connection_lost(self, exc):
-        print('Lost connection!')
-        self.transport.close()
-
-    def data_received(self, data):
-        print(data.decode('utf-8'), end='', flush=True)
+def main():
+    args = parse_args()
+    ssl_context = None
+    if args.ssl:
+        ssl_context = create_client_ssl_context(args.ssl[0], args.ssl[1])
+    connection, token = make_connection(args.host, args.port, ssl_context)
+    readline.parse_and_bind('tab: complete')
+    readline.set_completer(Completer(['connect', 'create', 'subscr']).complete)
+    try:
+        while True:
+            read_and_send(connection, token)
+    except KeyboardInterrupt:
+        print('Closing connection')
 
 def create_server():
     loop = asyncio.get_event_loop()
